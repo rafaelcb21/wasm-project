@@ -1,0 +1,46 @@
+{
+  "timestamp": "2026-02-14T15:47:34.587Z",
+  "executionTime": 120,
+  "imageSize": {
+    "width": 224,
+    "height": 224,
+    "channels": 3
+  },
+  "top1": {
+    "classIndex": 0,
+    "className": "tench",
+    "confidence": -127
+  },
+  "top5": [
+    {
+      "rank": 1,
+      "classIndex": 0,
+      "className": "tench",
+      "confidence": -127
+    },
+    {
+      "rank": 2,
+      "classIndex": 1,
+      "className": "goldfish",
+      "confidence": -127
+    },
+    {
+      "rank": 3,
+      "classIndex": 2,
+      "className": "great_white_shark",
+      "confidence": -127
+    },
+    {
+      "rank": 4,
+      "classIndex": 3,
+      "className": "tiger_shark",
+      "confidence": -127
+    },
+    {
+      "rank": 5,
+      "classIndex": 4,
+      "className": "hammerhead",
+      "confidence": -127
+    }
+  ]
+}

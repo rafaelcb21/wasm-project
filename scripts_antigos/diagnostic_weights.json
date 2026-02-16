@@ -1,0 +1,136 @@
+{
+  "timestamp": "2026-02-14T16:21:49.255Z",
+  "layer0": {
+    "wptr": 2048,
+    "bias_ptr": 1664096,
+    "mul_ptr": 1696256,
+    "cin": 3,
+    "cout": 16,
+    "kh": 3,
+    "kw": 3,
+    "in_ptr": 1767856,
+    "out_ptr": 2369968
+  },
+  "weights": {
+    "min": -127,
+    "max": 127,
+    "avg": 6.02,
+    "zeros": 19,
+    "unique": 59,
+    "sample": [
+      15,
+      30,
+      9,
+      -65,
+      -127,
+      -38,
+      53,
+      105,
+      23,
+      15,
+      34,
+      10,
+      -66,
+      -120,
+      -34,
+      60,
+      105,
+      23,
+      -1,
+      2
+    ]
+  },
+  "bias": {
+    "values": [
+      61676,
+      -30175,
+      50681,
+      -1073741824,
+      57799,
+      -1073741824,
+      87029,
+      1073741824,
+      96241,
+      62237,
+      78015,
+      -1073741824,
+      24002,
+      -1073741824,
+      64138,
+      -38688
+    ],
+    "nonZero": 16
+  },
+  "multipliers": {
+    "values": [
+      4550549,
+      10967633,
+      4775339,
+      180,
+      4868006,
+      130,
+      2464968,
+      13,
+      2847725,
+      10820066,
+      3339900,
+      135,
+      7591150,
+      31,
+      4233062,
+      11392486
+    ],
+    "nonZero": 16
+  },
+  "syntheticTest": {
+    "min": -121,
+    "max": 35,
+    "avg": 1.352,
+    "unique": 41,
+    "sample": [
+      -3,
+      6,
+      -2,
+      29,
+      -1,
+      -2,
+      0,
+      -9,
+      10,
+      1,
+      33,
+      2,
+      1,
+      3,
+      20,
+      11,
+      3,
+      12,
+      -4,
+      13
+    ],
+    "executionTimeMs": 20
+  },
+  "diagnosis": [
+    {
+      "severity": "ok",
+      "category": "weights",
+      "message": "✅ Pesos parecem OK (variedade suficiente)"
+    },
+    {
+      "severity": "ok",
+      "category": "bias",
+      "message": "✅ Bias OK (16/16 não-zeros)"
+    },
+    {
+      "severity": "ok",
+      "category": "multipliers",
+      "message": "✅ Multiplicadores OK (16/16 não-zeros)"
+    },
+    {
+      "severity": "ok",
+      "category": "output",
+      "message": "✅ Layer 0 está produzindo saída variada"
+    }
+  ]
+}

@@ -1,0 +1,187 @@
+{
+  "timestamp": "2026-02-14T16:09:19.046Z",
+  "executionTimeMs": 118,
+  "image": {
+    "filename": "aviao_224x224x3.raw",
+    "dimensions": {
+      "width": 224,
+      "height": 224,
+      "channels": 3
+    }
+  },
+  "top20": [
+    {
+      "rank": 1,
+      "classIndex": 0,
+      "className": "tench",
+      "probability": 0.001,
+      "probabilityPercent": "0.10%",
+      "rawValue": -127
+    },
+    {
+      "rank": 2,
+      "classIndex": 1,
+      "className": "goldfish",
+      "probability": 0.001,
+      "probabilityPercent": "0.10%",
+      "rawValue": -127
+    },
+    {
+      "rank": 3,
+      "classIndex": 2,
+      "className": "great_white_shark",
+      "probability": 0.001,
+      "probabilityPercent": "0.10%",
+      "rawValue": -127
+    },
+    {
+      "rank": 4,
+      "classIndex": 3,
+      "className": "tiger_shark",
+      "probability": 0.001,
+      "probabilityPercent": "0.10%",
+      "rawValue": -127
+    },
+    {
+      "rank": 5,
+      "classIndex": 4,
+      "className": "hammerhead",
+      "probability": 0.001,
+      "probabilityPercent": "0.10%",
+      "rawValue": -127
+    },
+    {
+      "rank": 6,
+      "classIndex": 5,
+      "className": "electric_ray",
+      "probability": 0.001,
+      "probabilityPercent": "0.10%",
+      "rawValue": -127
+    },
+    {
+      "rank": 7,
+      "classIndex": 6,
+      "className": "stingray",
+      "probability": 0.001,
+      "probabilityPercent": "0.10%",
+      "rawValue": -127
+    },
+    {
+      "rank": 8,
+      "classIndex": 7,
+      "className": "cock",
+      "probability": 0.001,
+      "probabilityPercent": "0.10%",
+      "rawValue": -127
+    },
+    {
+      "rank": 9,
+      "classIndex": 8,
+      "className": "hen",
+      "probability": 0.001,
+      "probabilityPercent": "0.10%",
+      "rawValue": -127
+    },
+    {
+      "rank": 10,
+      "classIndex": 9,
+      "className": "ostrich",
+      "probability": 0.001,
+      "probabilityPercent": "0.10%",
+      "rawValue": -127
+    },
+    {
+      "rank": 11,
+      "classIndex": 10,
+      "className": "brambling",
+      "probability": 0.001,
+      "probabilityPercent": "0.10%",
+      "rawValue": -127
+    },
+    {
+      "rank": 12,
+      "classIndex": 11,
+      "className": "goldfinch",
+      "probability": 0.001,
+      "probabilityPercent": "0.10%",
+      "rawValue": -127
+    },
+    {
+      "rank": 13,
+      "classIndex": 12,
+      "className": "house_finch",
+      "probability": 0.001,
+      "probabilityPercent": "0.10%",
+      "rawValue": -127
+    },
+    {
+      "rank": 14,
+      "classIndex": 13,
+      "className": "junco",
+      "probability": 0.001,
+      "probabilityPercent": "0.10%",
+      "rawValue": -127
+    },
+    {
+      "rank": 15,
+      "classIndex": 14,
+      "className": "indigo_bunting",
+      "probability": 0.001,
+      "probabilityPercent": "0.10%",
+      "rawValue": -127
+    },
+    {
+      "rank": 16,
+      "classIndex": 15,
+      "className": "robin",
+      "probability": 0.001,
+      "probabilityPercent": "0.10%",
+      "rawValue": -127
+    },
+    {
+      "rank": 17,
+      "classIndex": 16,
+      "className": "bulbul",
+      "probability": 0.001,
+      "probabilityPercent": "0.10%",
+      "rawValue": -127
+    },
+    {
+      "rank": 18,
+      "classIndex": 17,
+      "className": "jay",
+      "probability": 0.001,
+      "probabilityPercent": "0.10%",
+      "rawValue": -127
+    },
+    {
+      "rank": 19,
+      "classIndex": 18,
+      "className": "magpie",
+      "probability": 0.001,
+      "probabilityPercent": "0.10%",
+      "rawValue": -127
+    },
+    {
+      "rank": 20,
+      "classIndex": 19,
+      "className": "chickadee",
+      "probability": 0.001,
+      "probabilityPercent": "0.10%",
+      "rawValue": -127
+    }
+  ],
+  "statistics": {
+    "raw": {
+      "min": -127,
+      "max": -127,
+      "avg": -127,
+      "uniqueValues": 1
+    },
+    "probabilities": {
+      "top1": 0.001,
+      "top5_sum": 0.005,
+      "entropy": 9.965784284662018
+    }
+  }
+}

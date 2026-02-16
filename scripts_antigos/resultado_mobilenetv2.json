@@ -1,0 +1,197 @@
+{
+  "timestamp": "2026-02-15T20:08:23.376Z",
+  "executionTimeMs": 129,
+  "image": {
+    "filename": "aviao_uint8.raw",
+    "dimensions": {
+      "width": 224,
+      "height": 224,
+      "channels": 3
+    },
+    "format": "RGB888 → RGB565"
+  },
+  "prediction": {
+    "topClass": "komondor",
+    "topClassIndex": 228,
+    "confidence": "0.35%"
+  },
+  "top20": [
+    {
+      "rank": 1,
+      "classIndex": 228,
+      "className": "komondor",
+      "probability": 0.003532051637209818,
+      "probabilityPercent": "0.35%",
+      "rawValue": 127
+    },
+    {
+      "rank": 2,
+      "classIndex": 233,
+      "className": "Bouvier_des_Flandres",
+      "probability": 0.003532051637209818,
+      "probabilityPercent": "0.35%",
+      "rawValue": 127
+    },
+    {
+      "rank": 3,
+      "classIndex": 244,
+      "className": "Tibetan_mastiff",
+      "probability": 0.003532051637209818,
+      "probabilityPercent": "0.35%",
+      "rawValue": 127
+    },
+    {
+      "rank": 4,
+      "classIndex": 253,
+      "className": "basenji",
+      "probability": 0.003532051637209818,
+      "probabilityPercent": "0.35%",
+      "rawValue": 127
+    },
+    {
+      "rank": 5,
+      "classIndex": 258,
+      "className": "Samoyed",
+      "probability": 0.003532051637209818,
+      "probabilityPercent": "0.35%",
+      "rawValue": 127
+    },
+    {
+      "rank": 6,
+      "classIndex": 261,
+      "className": "keeshond",
+      "probability": 0.003532051637209818,
+      "probabilityPercent": "0.35%",
+      "rawValue": 127
+    },
+    {
+      "rank": 7,
+      "classIndex": 262,
+      "className": "Brabancon_griffon",
+      "probability": 0.003532051637209818,
+      "probabilityPercent": "0.35%",
+      "rawValue": 127
+    },
+    {
+      "rank": 8,
+      "classIndex": 267,
+      "className": "standard_poodle",
+      "probability": 0.003532051637209818,
+      "probabilityPercent": "0.35%",
+      "rawValue": 127
+    },
+    {
+      "rank": 9,
+      "classIndex": 272,
+      "className": "coyote",
+      "probability": 0.003532051637209818,
+      "probabilityPercent": "0.35%",
+      "rawValue": 127
+    },
+    {
+      "rank": 10,
+      "classIndex": 277,
+      "className": "red_fox",
+      "probability": 0.003532051637209818,
+      "probabilityPercent": "0.35%",
+      "rawValue": 127
+    },
+    {
+      "rank": 11,
+      "classIndex": 278,
+      "className": "kit_fox",
+      "probability": 0.003532051637209818,
+      "probabilityPercent": "0.35%",
+      "rawValue": 127
+    },
+    {
+      "rank": 12,
+      "classIndex": 281,
+      "className": "tabby",
+      "probability": 0.003532051637209818,
+      "probabilityPercent": "0.35%",
+      "rawValue": 127
+    },
+    {
+      "rank": 13,
+      "classIndex": 282,
+      "className": "tiger_cat",
+      "probability": 0.003532051637209818,
+      "probabilityPercent": "0.35%",
+      "rawValue": 127
+    },
+    {
+      "rank": 14,
+      "classIndex": 289,
+      "className": "snow_leopard",
+      "probability": 0.003532051637209818,
+      "probabilityPercent": "0.35%",
+      "rawValue": 127
+    },
+    {
+      "rank": 15,
+      "classIndex": 290,
+      "className": "jaguar",
+      "probability": 0.003532051637209818,
+      "probabilityPercent": "0.35%",
+      "rawValue": 127
+    },
+    {
+      "rank": 16,
+      "classIndex": 293,
+      "className": "cheetah",
+      "probability": 0.003532051637209818,
+      "probabilityPercent": "0.35%",
+      "rawValue": 127
+    },
+    {
+      "rank": 17,
+      "classIndex": 294,
+      "className": "brown_bear",
+      "probability": 0.003532051637209818,
+      "probabilityPercent": "0.35%",
+      "rawValue": 127
+    },
+    {
+      "rank": 18,
+      "classIndex": 297,
+      "className": "sloth_bear",
+      "probability": 0.003532051637209818,
+      "probabilityPercent": "0.35%",
+      "rawValue": 127
+    },
+    {
+      "rank": 19,
+      "classIndex": 301,
+      "className": "ladybug",
+      "probability": 0.003532051637209818,
+      "probabilityPercent": "0.35%",
+      "rawValue": 127
+    },
+    {
+      "rank": 20,
+      "classIndex": 307,
+      "className": "weevil",
+      "probability": 0.003532051637209818,
+      "probabilityPercent": "0.35%",
+      "rawValue": 127
+    }
+  ],
+  "statistics": {
+    "raw": {
+      "min": -128,
+      "max": 127,
+      "avg": -34.407,
+      "uniqueValues": 85
+    },
+    "probabilities": {
+      "top1": 0.003532051637209818,
+      "top5_sum": 0.01766025818604909,
+      "entropy": 8.39882877694049
+    },
+    "performance": {
+      "inferenceTimeMs": 129,
+      "throughput": "7.75"
+    }
+  }
+}

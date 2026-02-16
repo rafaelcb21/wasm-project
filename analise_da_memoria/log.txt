@@ -1,0 +1,16 @@
+===== WASM MEMORY MAP (WITH ELEMENT SIZE) =====
+
+Total bytes: 3670016
+
+FREE                  : 0 → 2047 (2048 bytes) (1B/elem, ~2048 elems)
+WEIGHTS_BASE          : 2048 → 1664095 (1662048 bytes) (1B/elem, ~1662048 elems)
+BIAS_BASE             : 1664096 → 1696255 (32160 bytes) (4B/elem, ~8040 elems)
+MUL_BASE              : 1696256 → 1728415 (32160 bytes) (4B/elem, ~8040 elems)
+SHIFT_BASE            : 1728416 → 1760575 (32160 bytes) (4B/elem, ~8040 elems)
+Q6_BASE               : 1760576 → 1792735 (32160 bytes) (4B/elem, ~8040 elems)
+PARAMS_BASE           : 1792736 → 1800511 (7776 bytes) (4B/elem, ~1944 elems)
+SLOT0_BASE            : 1800512 → 2402623 (602112 bytes) (1B/elem, ~602112 elems)
+SLOT1_BASE            : 2402624 → 3004735 (602112 bytes) (1B/elem, ~602112 elems)
+SLOT2_BASE            : 3004736 → 3670015 (665280 bytes) (1B/elem, ~665280 elems)
+
+===============================================

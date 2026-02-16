@@ -1,0 +1,323 @@
+{
+  "timestamp": "2026-02-15T20:40:53.229Z",
+  "executionTimeMs": 125,
+  "inputAnalysis": {
+    "name": "IMAGEM DE ENTRADA (amostra)",
+    "count": 10000,
+    "min": -56,
+    "max": 73,
+    "avg": "10.05",
+    "std": "51.47",
+    "saturatedMin": 0,
+    "saturatedMax": 0,
+    "saturatedTotal": 0,
+    "saturatedPercent": "0.00",
+    "zeros": 0,
+    "zerosPercent": "0.00",
+    "uniqueValues": 13,
+    "distribution": {
+      "10": 3334,
+      "70": 3333,
+      "-60": 3333
+    }
+  },
+  "outputAnalysis": {
+    "name": "SAÍDA FINAL (1000 classes)",
+    "count": 1000,
+    "min": -128,
+    "max": 127,
+    "avg": "-44.06",
+    "std": "114.34",
+    "saturatedMin": 610,
+    "saturatedMax": 282,
+    "saturatedTotal": 892,
+    "saturatedPercent": "89.20",
+    "zeros": 0,
+    "zerosPercent": "0.00",
+    "uniqueValues": 92,
+    "distribution": {
+      "0": 3,
+      "10": 4,
+      "20": 3,
+      "30": 6,
+      "40": 6,
+      "50": 4,
+      "60": 3,
+      "70": 3,
+      "80": 2,
+      "90": 1,
+      "100": 2,
+      "110": 1,
+      "120": 285,
+      "-130": 613,
+      "-80": 9,
+      "-60": 3,
+      "-70": 7,
+      "-30": 5,
+      "-50": 10,
+      "-90": 4,
+      "-10": 5,
+      "-110": 5,
+      "-40": 7,
+      "-20": 4,
+      "-100": 4,
+      "-120": 1
+    }
+  },
+  "maxValueCount": 282,
+  "top20": [
+    {
+      "rank": 1,
+      "classIndex": 1,
+      "rawValue": 127
+    },
+    {
+      "rank": 2,
+      "classIndex": 8,
+      "rawValue": 127
+    },
+    {
+      "rank": 3,
+      "classIndex": 12,
+      "rawValue": 127
+    },
+    {
+      "rank": 4,
+      "classIndex": 13,
+      "rawValue": 127
+    },
+    {
+      "rank": 5,
+      "classIndex": 15,
+      "rawValue": 127
+    },
+    {
+      "rank": 6,
+      "classIndex": 22,
+      "rawValue": 127
+    },
+    {
+      "rank": 7,
+      "classIndex": 26,
+      "rawValue": 127
+    },
+    {
+      "rank": 8,
+      "classIndex": 29,
+      "rawValue": 127
+    },
+    {
+      "rank": 9,
+      "classIndex": 30,
+      "rawValue": 127
+    },
+    {
+      "rank": 10,
+      "classIndex": 31,
+      "rawValue": 127
+    },
+    {
+      "rank": 11,
+      "classIndex": 40,
+      "rawValue": 127
+    },
+    {
+      "rank": 12,
+      "classIndex": 44,
+      "rawValue": 127
+    },
+    {
+      "rank": 13,
+      "classIndex": 45,
+      "rawValue": 127
+    },
+    {
+      "rank": 14,
+      "classIndex": 48,
+      "rawValue": 127
+    },
+    {
+      "rank": 15,
+      "classIndex": 56,
+      "rawValue": 127
+    },
+    {
+      "rank": 16,
+      "classIndex": 60,
+      "rawValue": 127
+    },
+    {
+      "rank": 17,
+      "classIndex": 61,
+      "rawValue": 127
+    },
+    {
+      "rank": 18,
+      "classIndex": 64,
+      "rawValue": 127
+    },
+    {
+      "rank": 19,
+      "classIndex": 65,
+      "rawValue": 127
+    },
+    {
+      "rank": 20,
+      "classIndex": 68,
+      "rawValue": 127
+    }
+  ],
+  "bottom20": [
+    {
+      "rank": 981,
+      "classIndex": 968,
+      "rawValue": -128
+    },
+    {
+      "rank": 982,
+      "classIndex": 969,
+      "rawValue": -128
+    },
+    {
+      "rank": 983,
+      "classIndex": 970,
+      "rawValue": -128
+    },
+    {
+      "rank": 984,
+      "classIndex": 974,
+      "rawValue": -128
+    },
+    {
+      "rank": 985,
+      "classIndex": 977,
+      "rawValue": -128
+    },
+    {
+      "rank": 986,
+      "classIndex": 978,
+      "rawValue": -128
+    },
+    {
+      "rank": 987,
+      "classIndex": 979,
+      "rawValue": -128
+    },
+    {
+      "rank": 988,
+      "classIndex": 981,
+      "rawValue": -128
+    },
+    {
+      "rank": 989,
+      "classIndex": 982,
+      "rawValue": -128
+    },
+    {
+      "rank": 990,
+      "classIndex": 983,
+      "rawValue": -128
+    },
+    {
+      "rank": 991,
+      "classIndex": 984,
+      "rawValue": -128
+    },
+    {
+      "rank": 992,
+      "classIndex": 985,
+      "rawValue": -128
+    },
+    {
+      "rank": 993,
+      "classIndex": 986,
+      "rawValue": -128
+    },
+    {
+      "rank": 994,
+      "classIndex": 987,
+      "rawValue": -128
+    },
+    {
+      "rank": 995,
+      "classIndex": 989,
+      "rawValue": -128
+    },
+    {
+      "rank": 996,
+      "classIndex": 992,
+      "rawValue": -128
+    },
+    {
+      "rank": 997,
+      "classIndex": 994,
+      "rawValue": -128
+    },
+    {
+      "rank": 998,
+      "classIndex": 996,
+      "rawValue": -128
+    },
+    {
+      "rank": 999,
+      "classIndex": 997,
+      "rawValue": -128
+    },
+    {
+      "rank": 1000,
+      "classIndex": 998,
+      "rawValue": -128
+    }
+  ],
+  "issues": [
+    {
+      "severity": "🔴 CRÍTICO",
+      "issue": "Alta saturação na saída",
+      "description": "89.20% dos valores estão saturados em +127 ou -128",
+      "possibleCause": "Problema na quantização da última camada (FC ou Softmax)",
+      "solution": "Verificar parâmetros mul/shift da camada 66 (Softmax) e layer 65 (FC)"
+    },
+    {
+      "severity": "🔴 CRÍTICO",
+      "issue": "Baixa diversidade de valores",
+      "description": "Apenas 92 valores únicos em 1000 classes",
+      "possibleCause": "Pesos ou bias da última camada podem estar errados",
+      "solution": "Verificar arquivo de pesos da camada Fully Connected (layer 65)"
+    },
+    {
+      "severity": "🔴 CRÍTICO",
+      "issue": "Múltiplas classes com valor máximo",
+      "description": "282 classes têm valor 127",
+      "possibleCause": "Overflow na última camada ou problema no Softmax",
+      "solution": "Verificar implementação do Softmax e parâmetros de quantização"
+    }
+  ],
+  "distribution": {
+    "0": 3,
+    "10": 4,
+    "20": 3,
+    "30": 6,
+    "40": 6,
+    "50": 4,
+    "60": 3,
+    "70": 3,
+    "80": 2,
+    "90": 1,
+    "100": 2,
+    "110": 1,
+    "120": 285,
+    "-130": 613,
+    "-80": 9,
+    "-60": 3,
+    "-70": 7,
+    "-30": 5,
+    "-50": 10,
+    "-90": 4,
+    "-10": 5,
+    "-110": 5,
+    "-40": 7,
+    "-20": 4,
+    "-100": 4,
+    "-120": 1
+  }
+}

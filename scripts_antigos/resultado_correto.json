@@ -1,0 +1,188 @@
+{
+  "timestamp": "2026-02-14T20:47:22.756Z",
+  "executionTimeMs": 123,
+  "note": "Usando saída da FC (Layer 63), ignorando Softmax quantizado mal parametrizado",
+  "image": {
+    "filename": "aviao_224x224x3.raw",
+    "dimensions": {
+      "width": 224,
+      "height": 224,
+      "channels": 3
+    }
+  },
+  "top20": [
+    {
+      "rank": 1,
+      "classIndex": 778,
+      "className": "scale",
+      "probability": 0.45260338062853667,
+      "probabilityPercent": "45.2603%",
+      "logit": 64
+    },
+    {
+      "rank": 2,
+      "classIndex": 813,
+      "className": "spatula",
+      "probability": 0.06125320671121144,
+      "probabilityPercent": "6.1253%",
+      "logit": 44
+    },
+    {
+      "rank": 3,
+      "classIndex": 221,
+      "className": "Irish_water_spaniel",
+      "probability": 0.05542419340699544,
+      "probabilityPercent": "5.5424%",
+      "logit": 43
+    },
+    {
+      "rank": 4,
+      "classIndex": 840,
+      "className": "swab",
+      "probability": 0.045377491606849084,
+      "probabilityPercent": "4.5377%",
+      "logit": 41
+    },
+    {
+      "rank": 5,
+      "classIndex": 541,
+      "className": "drum",
+      "probability": 0.027522839920406675,
+      "probabilityPercent": "2.7523%",
+      "logit": 36
+    },
+    {
+      "rank": 6,
+      "classIndex": 427,
+      "className": "barrel",
+      "probability": 0.024903695410597806,
+      "probabilityPercent": "2.4904%",
+      "logit": 35
+    },
+    {
+      "rank": 7,
+      "classIndex": 790,
+      "className": "shopping_basket",
+      "probability": 0.016693446254089462,
+      "probabilityPercent": "1.6693%",
+      "logit": 31
+    },
+    {
+      "rank": 8,
+      "classIndex": 558,
+      "className": "flute",
+      "probability": 0.015104854806672367,
+      "probabilityPercent": "1.5105%",
+      "logit": 30
+    },
+    {
+      "rank": 9,
+      "classIndex": 690,
+      "className": "oxcart",
+      "probability": 0.013667437823077477,
+      "probabilityPercent": "1.3667%",
+      "logit": 29
+    },
+    {
+      "rank": 10,
+      "classIndex": 696,
+      "className": "paintbrush",
+      "probability": 0.013667437823077477,
+      "probabilityPercent": "1.3667%",
+      "logit": 29
+    },
+    {
+      "rank": 11,
+      "classIndex": 355,
+      "className": "llama",
+      "probability": 0.012366809151000439,
+      "probabilityPercent": "1.2367%",
+      "logit": 28
+    },
+    {
+      "rank": 12,
+      "classIndex": 469,
+      "className": "caldron",
+      "probability": 0.012366809151000439,
+      "probabilityPercent": "1.2367%",
+      "logit": 28
+    },
+    {
+      "rank": 13,
+      "classIndex": 747,
+      "className": "punching_bag",
+      "probability": 0.01118995166153472,
+      "probabilityPercent": "1.1190%",
+      "logit": 27
+    },
+    {
+      "rank": 14,
+      "classIndex": 852,
+      "className": "tennis_ball",
+      "probability": 0.01118995166153472,
+      "probabilityPercent": "1.1190%",
+      "logit": 27
+    },
+    {
+      "rank": 15,
+      "classIndex": 899,
+      "className": "water_jug",
+      "probability": 0.01118995166153472,
+      "probabilityPercent": "1.1190%",
+      "logit": 27
+    },
+    {
+      "rank": 16,
+      "classIndex": 412,
+      "className": "ashcan",
+      "probability": 0.010125086969370272,
+      "probabilityPercent": "1.0125%",
+      "logit": 26
+    },
+    {
+      "rank": 17,
+      "classIndex": 811,
+      "className": "space_heater",
+      "probability": 0.010125086969370272,
+      "probabilityPercent": "1.0125%",
+      "logit": 26
+    },
+    {
+      "rank": 18,
+      "classIndex": 463,
+      "className": "bucket",
+      "probability": 0.009161557550754533,
+      "probabilityPercent": "0.9162%",
+      "logit": 25
+    },
+    {
+      "rank": 19,
+      "classIndex": 772,
+      "className": "safety_pin",
+      "probability": 0.009161557550754533,
+      "probabilityPercent": "0.9162%",
+      "logit": 25
+    },
+    {
+      "rank": 20,
+      "classIndex": 566,
+      "className": "French_horn",
+      "probability": 0.007500848912896528,
+      "probabilityPercent": "0.7501%",
+      "logit": 23
+    }
+  ],
+  "statistics": {
+    "logits": {
+      "min": -128,
+      "max": 64,
+      "avg": -49.126,
+      "uniqueValues": 156
+    },
+    "probabilities": {
+      "top1": 0.45260338062853667,
+      "top5_sum": 0.6421811122739994,
+      "entropy": 4.105246658183378
+    }
+  }
+}

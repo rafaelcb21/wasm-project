@@ -1,0 +1,186 @@
+{
+  "timestamp": "2026-02-14T16:26:03.883Z",
+  "note": "Comparação entre diferentes imagens de entrada",
+  "tests": [
+    {
+      "test": "Imagem Original (aviao.raw)",
+      "executionTimeMs": 134,
+      "top5": [
+        {
+          "classIndex": 922,
+          "className": "menu",
+          "probability": 0.0069833413482510215,
+          "logit": -24
+        },
+        {
+          "classIndex": 313,
+          "className": "walking_stick",
+          "probability": 0.006318788554815211,
+          "logit": -25
+        },
+        {
+          "classIndex": 799,
+          "className": "sliding_door",
+          "probability": 0.006318788554815211,
+          "logit": -25
+        },
+        {
+          "classIndex": 977,
+          "className": "sandbar",
+          "probability": 0.005717476321054167,
+          "logit": -26
+        },
+        {
+          "classIndex": 419,
+          "className": "Band_Aid",
+          "probability": 0.005173386512024389,
+          "logit": -27
+        }
+      ],
+      "statistics": {
+        "logitRange": [
+          -66,
+          -24
+        ],
+        "logitAvg": -45.493,
+        "top1Prob": 0.0069833413482510215,
+        "entropy": 9.658504177052114
+      }
+    },
+    {
+      "test": "Imagem Preta",
+      "executionTimeMs": 114,
+      "top5": [
+        {
+          "classIndex": 922,
+          "className": "menu",
+          "probability": 0.0069833413482510215,
+          "logit": -24
+        },
+        {
+          "classIndex": 313,
+          "className": "walking_stick",
+          "probability": 0.006318788554815211,
+          "logit": -25
+        },
+        {
+          "classIndex": 799,
+          "className": "sliding_door",
+          "probability": 0.006318788554815211,
+          "logit": -25
+        },
+        {
+          "classIndex": 977,
+          "className": "sandbar",
+          "probability": 0.005717476321054167,
+          "logit": -26
+        },
+        {
+          "classIndex": 419,
+          "className": "Band_Aid",
+          "probability": 0.005173386512024389,
+          "logit": -27
+        }
+      ],
+      "statistics": {
+        "logitRange": [
+          -66,
+          -24
+        ],
+        "logitAvg": -45.493,
+        "top1Prob": 0.0069833413482510215,
+        "entropy": 9.658504177052114
+      }
+    },
+    {
+      "test": "Imagem Branca",
+      "executionTimeMs": 119,
+      "top5": [
+        {
+          "classIndex": 922,
+          "className": "menu",
+          "probability": 0.0069833413482510215,
+          "logit": -24
+        },
+        {
+          "classIndex": 313,
+          "className": "walking_stick",
+          "probability": 0.006318788554815211,
+          "logit": -25
+        },
+        {
+          "classIndex": 799,
+          "className": "sliding_door",
+          "probability": 0.006318788554815211,
+          "logit": -25
+        },
+        {
+          "classIndex": 977,
+          "className": "sandbar",
+          "probability": 0.005717476321054167,
+          "logit": -26
+        },
+        {
+          "classIndex": 419,
+          "className": "Band_Aid",
+          "probability": 0.005173386512024389,
+          "logit": -27
+        }
+      ],
+      "statistics": {
+        "logitRange": [
+          -66,
+          -24
+        ],
+        "logitAvg": -45.493,
+        "top1Prob": 0.0069833413482510215,
+        "entropy": 9.658504177052114
+      }
+    },
+    {
+      "test": "Imagem Cinza (128)",
+      "executionTimeMs": 119,
+      "top5": [
+        {
+          "classIndex": 922,
+          "className": "menu",
+          "probability": 0.0069833413482510215,
+          "logit": -24
+        },
+        {
+          "classIndex": 313,
+          "className": "walking_stick",
+          "probability": 0.006318788554815211,
+          "logit": -25
+        },
+        {
+          "classIndex": 799,
+          "className": "sliding_door",
+          "probability": 0.006318788554815211,
+          "logit": -25
+        },
+        {
+          "classIndex": 977,
+          "className": "sandbar",
+          "probability": 0.005717476321054167,
+          "logit": -26
+        },
+        {
+          "classIndex": 419,
+          "className": "Band_Aid",
+          "probability": 0.005173386512024389,
+          "logit": -27
+        }
+      ],
+      "statistics": {
+        "logitRange": [
+          -66,
+          -24
+        ],
+        "logitAvg": -45.493,
+        "top1Prob": 0.0069833413482510215,
+        "entropy": 9.658504177052114
+      }
+    }
+  ]
+}

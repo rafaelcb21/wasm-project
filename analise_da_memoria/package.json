@@ -1,0 +1,12 @@
+{
+  "name": "analise_da_memoria",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "",
+  "main": "create_memory_simulated.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}

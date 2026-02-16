@@ -1,28 +1,13 @@
-# !apt-get install flatbuffers-compiler -y
-# !pip install flatbuffers
-# !rm -f schema.fbs # Ensure a clean download
-# !wget https://github.com/tensorflow/tflite-micro/raw/main/tensorflow/lite/schema/schema.fbs
-# !ls -l schema.fbs # Verify file download
-# !flatc --python schema.fbs
-# !pip install tflite
-
-import flatbuffers
-import tflite
-import tflite.Conv2DOptions as Conv2DOptions
-import tflite.DepthwiseConv2DOptions as DepthwiseConv2DOptions
-import tflite.FullyConnectedOptions as FullyConnectedOptions
-import tflite.Padding as Padding
-import tflite.ActivationFunctionType as ActivationFunctionType
-import numpy as np
-import pandas as pd
-import sys
-from pathlib import Path
-import struct
-import math
 import csv
+from pathlib import Path
 from collections import defaultdict, deque
+import tflite
 import tflite.Model as TFLModel
 import re
+import struct
+import numpy as np
+import sys
+import math
 
 MODEL_PATH = "mobilenetv2_alpha035_quant.tflite"
 OUT_WAT_PATH = "tensors_mul_q6_slots_params_alpha035.wat"
@@ -216,11 +201,12 @@ OP_FC = 3
 OP_ADD = 4
 OP_MEAN = 5
 OP_SOFTMAX = 6
+OP_QUANTIZE = 7
 
 FLAG_PADDING_SAME = 1 << 0
 FLAG_HAS_Q6 = 1 << 1
 
-LP_FMT = "<" + "i"*28
+LP_FMT = "<" + "i"*29
 LP_SIZE = struct.calcsize(LP_FMT)
 
 def parse_fused_activation(faf_int: int) -> int:
@@ -428,7 +414,7 @@ def pack_layerparam(
     kh, kw, stride_h, stride_w,
     dil_h, dil_w,
     pad_t, pad_b, pad_l, pad_r,
-    wptr, bias_ptr, mul_ptr, q6_ptr,
+    wptr, bias_ptr, mul_ptr, shift_ptr, q6_ptr,
     zx, zw, zy, out_h, out_w
 ):
     return struct.pack(
@@ -440,7 +426,7 @@ def pack_layerparam(
         stride_h, stride_w,
         dil_h, dil_w,
         pad_t, pad_b, pad_l, pad_r,
-        wptr, bias_ptr, mul_ptr, q6_ptr,
+        wptr, bias_ptr, mul_ptr, shift_ptr, q6_ptr,
         zx, zw, zy, out_h, out_w
     )
 
@@ -482,7 +468,8 @@ def build_graph_for_subgraph(model, sg):
 
     return op_types, producer_by_tensor, consumers_by_tensor
 
-def compute_useful_adjacency(sg, op_types, consumers_by_tensor, ignored_types={"QUANTIZE"}):
+#def compute_useful_adjacency(sg, op_types, consumers_by_tensor, ignored_types={"QUANTIZE"}):
+def compute_useful_adjacency(sg, op_types, consumers_by_tensor, ignored_types=set()):  # ← REMOVIDO {"QUANTIZE"}
     n_ops = sg.OperatorsLength()
     ignored = set(i for i, t in enumerate(op_types) if t in ignored_types)
     useful = [i for i in range(n_ops) if i not in ignored]
@@ -565,7 +552,7 @@ data_lines = ["nome_da_camada; camada_atual; camada_acima; camada_de_baixo"]
 
 op_types, producer_by_tensor, consumers_by_tensor = build_graph_for_subgraph(model, subgraph)
 useful, useful_inputs, useful_outputs = compute_useful_adjacency(
-    subgraph, op_types, consumers_by_tensor, ignored_types={"QUANTIZE"}
+    subgraph, op_types, consumers_by_tensor, ignored_types=set()
 )
 
 new_label = {old_idx: f"L{i}" for i, old_idx in enumerate(useful)}
@@ -630,8 +617,31 @@ def allocate_slots(layers):
 
     for i, layer in enumerate(layers):
         layer_name = layer['name']
+        layer_type = layer['type'] 
         layers_above = layer['above']
         layers_below = layer['below']
+
+        # ========== NOVO: QUANTIZE usa mesmo slot do input ==========
+        if layer_type == 'QUANTIZE':
+            # QUANTIZE não aloca slot novo, usa o do input
+            if not layers_above:
+                input_slot = 0
+            else:
+                input_slot = layer_output_slot[layers_above[0]]
+            
+            # Output slot = input slot (operação in-place)
+            layer_output_slot[layer_name] = input_slot
+            
+            allocation.append({
+                'layer': layer_name,
+                'type': layer_type,
+                'input_slots': [input_slot],
+                'output_slot': input_slot,  # ← MESMO SLOT!
+            })
+            
+            print(f"{layer_type:25} {layer_name:5} [{input_slot} -> {input_slot}] (in-place)")
+            continue  # ← Pula o resto da lógica
+        # ============================================================
 
         if not layers_above:
             input_slots = [0]
@@ -667,7 +677,7 @@ def allocate_slots(layers):
 
         allocation.append({
             'layer': layer_name,
-            'type': layer['type'],
+            'type': layer_type,
             'input_slots': input_slots,
             'output_slot': output_slot,
         })
@@ -831,6 +841,7 @@ for i in range(subgraph.OperatorsLength()):
 # (B) EXTRACT MUL + Q6 (Conv/DW/FC)
 # ============================================================
 mul_vals = []
+shift_vals = []
 q6_vals = []
 mul_q6_off = {}
 
@@ -880,15 +891,24 @@ for i in range(subgraph.OperatorsLength()):
 
     if sw_arr.size == 1:
         rm = (float(sw_arr[0]) * sx) / sy
-        mul = int(np.round(rm * (1 << RSHIFT_DEFAULT)))
+        mul, shift = quantize_multiplier(rm)
         mul_vals.extend([mul] * nfeat)
+        shift_vals.extend([shift] * nfeat)
     else:
         use = min(nfeat, sw_arr.size)
         rmv = (sw_arr[:use] * sx) / sy
-        mulv = np.round(rmv * (1 << RSHIFT_DEFAULT)).astype(np.int64)
-        mul_vals.extend(int(x) for x in mulv)
+        for rm in rmv:
+            mul, shift = quantize_multiplier(rm)
+            mul_vals.append(int(mul))
+            shift_vals.append(int(shift))
+
         if nfeat > use:
-            mul_vals.extend([int(mulv[-1])] * (nfeat - use))
+            mul_vals.extend([mul_vals[-1]] * (nfeat - use))
+            shift_vals.extend([shift_vals[-1]] * (nfeat - use))
+
+        if nfeat > use:
+            mul_vals.extend([mul_vals[-1]] * (nfeat - use))
+            shift_vals.extend([shift_vals[-1]] * (nfeat - use))
 
     zy = zp_scalar(out0)
 
@@ -902,9 +922,13 @@ for i in range(subgraph.OperatorsLength()):
         if nfeat > use:
             q6_vals.extend([int(q6v[-1])] * (nfeat - use))
 
-    mul_q6_off[i] = (mul_off, q6_off, nfeat)
+    shift_off = len(shift_vals) * 4 - nfeat * 4
+
+    mul_q6_off[i] = (mul_off, shift_off, q6_off, nfeat)
 
 mul_blob = np.array(mul_vals, dtype="<i4").tobytes()
+shift_blob = np.array(shift_vals, dtype="<i4").tobytes()
+
 q6_blob = np.array(q6_vals, dtype="<i4").tobytes()
 
 # ============================================================
@@ -946,10 +970,14 @@ bias_bytes = len(bias_raw)
 mul_base = align_up(bias_base + bias_bytes, ALIGN)
 mul_bytes = len(mul_blob)
 
-q6_base = align_up(mul_base + mul_bytes, ALIGN)
+shift_base = align_up(mul_base + mul_bytes, ALIGN)
+shift_bytes = len(shift_blob)
+
+q6_base = align_up(shift_base + shift_bytes, ALIGN)
 q6_bytes = len(q6_blob)
 
 params_base = align_up(q6_base + q6_bytes, ALIGN)
+
 
 # ============================================================
 # (E) CRIAR LAYER PARAMS COM SLOTS CORRETOS E QUANTIZAÇÃO
@@ -961,20 +989,35 @@ label_to_input_slots = {alloc['layer']: alloc['input_slots'] for alloc in slot_a
 
 layer_params = []
 
-# Calcular slot_bases antecipadamente (precisamos deles para calcular ponteiros)
-params_bytes_estimate = len(useful) * LP_SIZE  # estimativa
-params_bytes = align_up(params_bytes_estimate, ALIGN)
+# ============================================================
+# CALCULAR SLOT_BASES CORRETO (antes de criar layer_params)
+# ============================================================
+
+# Primeiro, contar quantas layers teremos (excluindo QUANTIZE que já está em useful)
+num_layers = len([i for i in range(subgraph.OperatorsLength()) if i in old_idx_to_label])
+
+params_bytes = align_up(num_layers * LP_SIZE, ALIGN)
 
 slot0_base = align_up(params_base + params_bytes, ALIGN)
 slot_bases = [slot0_base]
 for _ in range(1, NUM_SLOTS):
     slot_bases.append(align_up(slot_bases[-1] + SLOT_BYTES, ALIGN))
 
+print(f"\n[INFO] Calculando slot_bases ANTES de criar layer_params:")
+print(f"  num_layers estimado: {num_layers}")
+print(f"  params_bytes: {params_bytes}")
+print(f"  slot_bases: {slot_bases}")
+print()
+
+# ============================================================
+# (E) CRIAR LAYER PARAMS COM SLOTS CORRETOS E QUANTIZAÇÃO
+# ============================================================
+
 for i in range(subgraph.OperatorsLength()):
     op = subgraph.Operators(i)
     optype = op_name(model, op)
 
-    # Pula ops que foram filtradas (QUANTIZE)
+    # Verificar se é operação útil (incluindo QUANTIZE agora)
     if i not in old_idx_to_label:
         continue
 
@@ -995,6 +1038,8 @@ for i in range(subgraph.OperatorsLength()):
         op_type = OP_MEAN
     elif optype == "SOFTMAX":
         op_type = OP_SOFTMAX
+    elif optype == "QUANTIZE":
+        op_type = OP_QUANTIZE
     else:
         continue  # Ignora outras ops
 
@@ -1002,6 +1047,90 @@ for i in range(subgraph.OperatorsLength()):
     out_ids = [int(k) for k in op.OutputsAsNumpy() if int(k) >= 0]
 
     if len(out_ids) < 1:
+        continue
+
+    # ========== QUANTIZE (Requantização) ==========
+    if optype == "QUANTIZE":
+        if len(in_ids) < 1:
+            continue
+
+        in0 = subgraph.Tensors(in_ids[0])
+        out0 = subgraph.Tensors(out_ids[0])
+
+        in_shape = tensor_shape_list(in0)
+        out_shape = tensor_shape_list(out0)
+
+        # Dimensões (assumindo formato NHWC ou NC)
+        in_h = in_shape[1] if len(in_shape) >= 3 else 1
+        in_w = in_shape[2] if len(in_shape) >= 3 else 1
+        cin = in_shape[3] if len(in_shape) >= 4 else (in_shape[1] if len(in_shape) == 2 else 1)
+
+        out_h = out_shape[1] if len(out_shape) >= 3 else 1
+        out_w = out_shape[2] if len(out_shape) >= 3 else 1
+        cout = out_shape[3] if len(out_shape) >= 4 else (out_shape[1] if len(out_shape) == 2 else 1)
+
+        # Parâmetros de quantização
+        scale_in = scale_scalar(in0)
+        zp_in = zp_scalar(in0)
+        scale_out = scale_scalar(out0)
+        zp_out = zp_scalar(out0)
+
+        # Calcular multiplicador para conversão: scale_in / scale_out
+        if scale_out == 0.0:
+            raise RuntimeError(f"QUANTIZE op_index={i}: escala de saída scale_out=0")
+        
+        ratio = scale_in / scale_out
+        mul_quantize, shift_quantize = quantize_multiplier(ratio)
+
+        # Usar tensor_to_slot
+        if in_ids[0] not in tensor_to_slot:
+            raise RuntimeError(f"QUANTIZE op_index={i}: input tensor sem slot mapeado (tensor_id={in_ids[0]})")
+        slot_in = tensor_to_slot[in_ids[0]]
+        in_ptr_0 = slot_bases[slot_in]
+
+        print(f"\nQUANTIZE {label}: scale_in={scale_in:.6f}, scale_out={scale_out:.6f}, ratio={ratio:.6f}")
+        print(f"  mul={mul_quantize}, shift={shift_quantize}, zp_in={zp_in}, zp_out={zp_out}")
+
+        layer_params.append({
+            "op_index": i,
+            "optype": optype,
+            "op_type": OP_QUANTIZE,
+            "act": ACT_NONE,
+            "flags": 0,
+            "in_slot": slot_in,
+            "out_slot": out_slot,
+            "in_h": int(in_h), "in_w": int(in_w),
+            "cin": int(cin), "cout": int(cout),
+            "kh": int(mul_quantize),    # mul (Q31)
+            "kw": int(shift_quantize),  # shift
+            "stride_h": 0,  # Não usado
+            "stride_w": 0,  # Não usado
+            "dil_h": 1, "dil_w": 1,
+            "pad_t": in_ptr_0,  # input_ptr
+            "pad_b": 0, "pad_l": 0, "pad_r": 0,
+            "out_h": int(out_h), "out_w": int(out_w),
+            "w_off": 0,
+            "has_bias": False,
+            "b_off": 0,
+            "has_mulq6": False,
+            "mul_off": 0,
+            "q6_off": 0,
+            "zx": int(zp_in),   # zero point input
+            "zw": 0,
+            "zy": int(zp_out),  # zero point output
+            "depth_mult": 1,
+            "input_slots": [slot_in],
+            "input_ptrs": [in_ptr_0],
+            "quant_params": {
+                "scale_in": float(scale_in),
+                "scale_out": float(scale_out),
+                "zp_in": int(zp_in),
+                "zp_out": int(zp_out),
+                "mul": int(mul_quantize),
+                "shift": int(shift_quantize),
+                "ratio": float(ratio)
+            }
+        })
         continue
 
     # ========== ADD COM QUANTIZAÇÃO COMPLETA (CORRIGIDO) ==========
@@ -1130,6 +1259,7 @@ for i in range(subgraph.OperatorsLength()):
             raise RuntimeError(f"MEAN op_index={i}: escala de saída sY=0")
         ratio = sX / sY
         mul_mean, shift_mean = quantize_multiplier(ratio)
+
 
         # Usar tensor_to_slot
         if in_ids[0] not in tensor_to_slot:
@@ -1324,7 +1454,9 @@ for i in range(subgraph.OperatorsLength()):
 
     has_mulq6 = (i in mul_q6_off)
     mul_off = int(mul_q6_off[i][0]) if has_mulq6 else 0
-    q6_off = int(mul_q6_off[i][1]) if has_mulq6 else 0
+    shift_off = int(mul_q6_off[i][1]) if has_mulq6 else 0
+    q6_off = int(mul_q6_off[i][2]) if has_mulq6 else 0
+
 
     layer_params.append({
         "op_index": i,
@@ -1347,6 +1479,7 @@ for i in range(subgraph.OperatorsLength()):
         "b_off": int(b_off),
         "has_mulq6": bool(has_mulq6),
         "mul_off": int(mul_off),
+        "shift_off": int(shift_off),
         "q6_off": int(q6_off),
         "zx": int(zx), "zw": int(zw), "zy": int(zy),
         "depth_mult": int(depth_mult) if optype == "DEPTHWISE_CONV_2D" else 1,
@@ -1356,16 +1489,9 @@ for i in range(subgraph.OperatorsLength()):
 # ============================================================
 # (F) params blob + slots COM ENDEREÇOS CORRETOS
 # ============================================================
-params_bytes = align_up(len(layer_params) * LP_SIZE, ALIGN)
-
-# Recalcular slot_bases com params_bytes correto
-slot0_base = align_up(params_base + params_bytes, ALIGN)
-slot_bases = [slot0_base]
-for _ in range(1, NUM_SLOTS):
-    slot_bases.append(align_up(slot_bases[-1] + SLOT_BYTES, ALIGN))
 
 def op_type_name(x):
-    return {OP_CONV:"CONV", OP_DW:"DW", OP_FC:"FC", OP_ADD:"ADD", OP_MEAN:"MEAN", OP_SOFTMAX:"SOFTMAX"}.get(x, str(x))
+    return {OP_CONV:"CONV", OP_DW:"DW", OP_FC:"FC", OP_ADD:"ADD", OP_MEAN:"MEAN", OP_SOFTMAX:"SOFTMAX", OP_QUANTIZE:"QUANTIZE"}.get(x, str(x))
 
 def act_name(x):
     return {ACT_NONE:"NONE", ACT_RELU:"RELU", ACT_RELU6:"RELU6"}.get(x, str(x))
@@ -1379,36 +1505,50 @@ def flags_pretty(flags: int):
 params_blob = bytearray()
 layer_meta_full = []
 
+# ===== DEBUG: Verificar slot_bases =====
+print("\n" + "=" * 80)
+print("DEBUG: SLOT_BASES:")
+print("=" * 80)
+print(f"slot_bases = {slot_bases}")
+print(f"slot0_base = {slot0_base}")
+print(f"SLOT_BYTES = {SLOT_BYTES}")
+print()
+
 # ===== VALIDAÇÃO FINAL (antes de serializar params_blob) =====
 
-for p in layer_params:
+for li, p in enumerate(layer_params):  # ← USAR li ao invés de p["op_index"]
     if p["optype"] == "ADD":
+        print(f"\nADD L{li} (op_index={p['op_index']}):")
+        print(f"  input_slots: {p.get('input_slots', [])}")
+        print(f"  pad_t (deve ser slot_bases[{p.get('input_slots', [None, None])[0]}]): {p['pad_t']}")
+        print(f"  pad_b (deve ser slot_bases[{p.get('input_slots', [None, None])[1]}]): {p['pad_b']}")
+        print(f"  slot_bases[{p.get('input_slots', [None, None])[0]}] = {slot_bases[p.get('input_slots', [None, None])[0]] if p.get('input_slots', [None, None])[0] is not None else 'N/A'}")
+        print(f"  slot_bases[{p.get('input_slots', [None, None])[1]}] = {slot_bases[p.get('input_slots', [None, None])[1]] if len(p.get('input_slots', [])) > 1 else 'N/A'}")
         # pad_t/pad_b precisam ser bases de slot
         assert p["pad_t"] in slot_bases and p["pad_b"] in slot_bases, \
-            f"ADD op_index={p['op_index']} com pad_t/pad_b fora de slot_bases"
+            f"ADD L{li} (op_index={p['op_index']}) com pad_t/pad_b fora de slot_bases"  # ← USAR li
 
         # in_slot deve bater com primeiro input slot
         if "input_slots" in p and len(p["input_slots"]) == 2:
             assert p["in_slot"] == p["input_slots"][0], \
-                f"ADD op_index={p['op_index']} in_slot != input_slots[0]"
+                f"ADD L{li} (op_index={p['op_index']}) in_slot != input_slots[0]"  # ← USAR li
             assert p["pad_t"] == slot_bases[p["input_slots"][0]], \
-                f"ADD op_index={p['op_index']} pad_t != base(input_slots[0])"
+                f"ADD L{li} (op_index={p['op_index']}) pad_t != base(input_slots[0])"  # ← USAR li
             assert p["pad_b"] == slot_bases[p["input_slots"][1]], \
-                f"ADD op_index={p['op_index']} pad_b != base(input_slots[1])"
+                f"ADD L{li} (op_index={p['op_index']}) pad_b != base(input_slots[1])"  # ← USAR li
 
         if len(p.get("input_slots", [])) != 2:
-            raise RuntimeError(f"ADD op_index={p['op_index']} sem 2 input_slots")
+            raise RuntimeError(f"ADD L{li} (op_index={p['op_index']}) sem 2 input_slots")  # ← USAR li
 
         # NOVO: ptrs dos dois inputs de ADD devem apontar para bases válidas de slot
         a, b = p["pad_t"], p["pad_b"]
         if a not in slot_bases or b not in slot_bases:
             raise RuntimeError(
-                f"ADD op_index={p['op_index']} com ptr fora de slot_bases: {a}, {b}"
+                f"ADD L{li} (op_index={p['op_index']}) com ptr fora de slot_bases: {a}, {b}"  # ← USAR li
             )
 
         if p["pad_t"] == 0 or p["pad_b"] == 0:
-            # só é aceitável 0 se slot0_base for realmente 0 (não é seu caso)
-            print(f"[WARN] ADD op_index={p['op_index']} com pad_t/pad_b zero")
+            print(f"[WARN] ADD L{li} (op_index={p['op_index']}) com pad_t/pad_b zero")  # ← USAR li
 
 
 for li, p in enumerate(layer_params):
@@ -1422,7 +1562,9 @@ for li, p in enumerate(layer_params):
     wptr = kernel_base + p["w_off"]
     bias_ptr = (bias_base + p["b_off"]) if p["has_bias"] else 0
     mul_ptr = (mul_base + p["mul_off"]) if p["has_mulq6"] else 0
+    shift_ptr = (shift_base + p["shift_off"]) if p["has_mulq6"] else 0
     q6_ptr = (q6_base + p["q6_off"]) if (p["has_mulq6"] and p["act"] == ACT_RELU6) else 0
+
 
     layer_meta_full.append(f";; ================== L{li} ==================")
     layer_meta_full.append(f";; op_index          : {p['op_index']}")
@@ -1464,6 +1606,15 @@ for li, p in enumerate(layer_params):
         layer_meta_full.append(f";; input_beta_mul     : {qp['input_beta_mul']}")
         layer_meta_full.append(f";; input_beta_left_sh : {qp['input_beta_left_shift']}")
         layer_meta_full.append(f";; diff_min           : {qp['diff_min']}")
+    
+    # Para QUANTIZE: mostrar parâmetros de quantização
+    if p['optype'] == 'QUANTIZE' and 'quant_params' in p:
+        qp = p['quant_params']
+        layer_meta_full.append(f";; --- QUANTIZE Params ---")
+        layer_meta_full.append(f";; scale_in/out      : {qp['scale_in']:.6f} / {qp['scale_out']:.6f}")
+        layer_meta_full.append(f";; zp_in/out         : {qp['zp_in']} / {qp['zp_out']}")
+        layer_meta_full.append(f";; ratio             : {qp['ratio']:.6f}")
+        layer_meta_full.append(f";; mul/shift         : {qp['mul']} / {qp['shift']}")
 
     # Para operações multi-input, mostrar todos os ponteiros
     if 'input_ptrs' in p and len(p.get('input_slots', [])) > 1 and p['optype'] != 'ADD':
@@ -1499,6 +1650,9 @@ for li, p in enumerate(layer_params):
         layer_meta_full.append(f";; depth_mult        : {p['depth_mult']}")
     layer_meta_full.append(f";; w_off/b_off       : {p['w_off']} / {p['b_off']}")
     layer_meta_full.append(f";; mul_off/q6_off     : {p['mul_off']} / {p['q6_off']}")
+    layer_meta_full.append(f";; shift_off           : {p.get('shift_off', 0)}")
+    layer_meta_full.append(f";; shift_ptr           : {shift_ptr}")
+
     layer_meta_full.append(f";; wptr/bias/mul/q6   : {wptr} / {bias_ptr} / {mul_ptr} / {q6_ptr}")
     layer_meta_full.append(f";; zx/zw/zy           : {p['zx']} / {p['zw']} / {p['zy']}")
     layer_meta_full.append(";;")
@@ -1511,7 +1665,7 @@ for li, p in enumerate(layer_params):
         p["stride_h"], p["stride_w"],
         p["dil_h"], p["dil_w"],
         p["pad_t"], p["pad_b"], p["pad_l"], p["pad_r"],
-        wptr, bias_ptr, mul_ptr, q6_ptr,
+        wptr, bias_ptr, mul_ptr, shift_ptr, q6_ptr,
         p["zx"], p["zw"], p["zy"],
         p["out_h"], p["out_w"]
     )
@@ -1570,10 +1724,20 @@ sections.append(";;   pad_t       = input_ptr")
 sections.append(";;   zx          = zX (zero point input)")
 sections.append(";;   zy          = zY (zero point output, tipicamente -128)")
 sections.append("")
+sections.append(";; QUANTIZE (op_type=7):")
+sections.append(";;   kh          = mul (Q31 multiplier para conversão)")
+sections.append(";;   kw          = shift (pode ser negativo)")
+sections.append(";;   pad_t       = input_ptr")
+sections.append(";;   zx          = zero_point_in")
+sections.append(";;   zy          = zero_point_out")
+sections.append(";;   Fórmula: out = ((in - zx) * mul >> shift) + zy")
+sections.append(";; ")
 
 sections.append(";; --- BASES (no overlap) ---")
 sections.append(f"(global $PARAMS_BASE i32 (i32.const {params_base}))")
 sections.append(f"(global $LP_SIZE i32 (i32.const {LP_SIZE}))")
+sections.append(f"(global $SLOT0_BASE i32 (i32.const {slot_bases[0]}))")
+sections.append(f"(global $NUM_LAYERS i32 (i32.const {len(layer_params)}))")
 sections.append("")
 
 sections.append(";; --- layer list (ALL ops) — FULL DUMP ---")
@@ -1593,6 +1757,11 @@ data_sections.append("")
 data_sections.append(";; --- MUL table (int32) ---")
 data_sections.append(f";; bytes: {mul_bytes} @ base {mul_base}")
 data_sections.append(wat_data_from_bytes(mul_blob, mul_base))
+data_sections.append("")
+
+data_sections.append(";; --- SHIFT table (int32) ---")
+data_sections.append(f";; bytes: {shift_bytes} @ base {shift_base}")
+data_sections.append(wat_data_from_bytes(shift_blob, shift_base))
 data_sections.append("")
 
 data_sections.append(";; --- Q6 table (int32) ---")
@@ -1639,6 +1808,18 @@ print(f"q6:      base={q6_base} bytes={q6_bytes} entries={len(q6_vals)}")
 print(f"params:  base={params_base} bytes={len(params_blob)} layers={len(layer_params)} LP_SIZE={LP_SIZE}")
 print(f"slots:   SLOT_BYTES={SLOT_BYTES} bases={slot_bases}")
 
+print("mul_base:", mul_base)
+print("mul_bytes:", mul_bytes)
+print("shift_base:", shift_base)
+print("shift_bytes:", shift_bytes)
+print("q6_base:", q6_base)
+print("q6_bytes:", q6_bytes)
+
+print("FC mul_off:", mul_off)
+print("FC shift_off:", shift_off)
+print("FC final mul_ptr:", mul_base + mul_off)
+print("FC final shift_ptr:", shift_base + shift_off)
+
 # Sumário de quantização para debug
 print("\n" + "=" * 80)
 print("RESUMO DE QUANTIZAÇÃO:")
@@ -1663,7 +1844,13 @@ for li, p in enumerate(layer_params):
         print(f"  integer_bits={qp['integer_bits']}, internal_scale={qp['internal_scale']:.6f}")
         print(f"  input_beta_mul={qp['input_beta_mul']}, input_beta_left_shift={qp['input_beta_left_shift']}")
         print(f"  diff_min={qp['diff_min']}")
-
+    elif p['optype'] == 'QUANTIZE' and 'quant_params' in p:
+        qp = p['quant_params']
+        print(f"L{li} (QUANTIZE):")
+        print(f"  scale_in={qp['scale_in']:.6f}, zp_in={qp['zp_in']}")
+        print(f"  scale_out={qp['scale_out']:.6f}, zp_out={qp['zp_out']}")
+        print(f"  ratio={qp['ratio']:.6f}")
+        print(f"  mul={qp['mul']}, shift={qp['shift']}")
 try:
     from google.colab import files
     files.download(OUT_WAT_PATH)
