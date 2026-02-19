@@ -41,6 +41,25 @@ tensor_type_map = {
 BYTES_PER_TYPE = {0:4, 1:2, 2:4, 3:1, 4:8, 6:1, 7:2, 9:1}
 
 # ---------- helpers ----------
+# Domínio real
+#LUT_MIN = -10.0
+#LUT_MAX = 0.0
+#STEP    = 0.01
+#
+#LUT_LEN  = int((LUT_MAX - LUT_MIN) / STEP) + 1
+#LUT_BASE = 0
+#
+#def build_exp_lut_real(min_x=-10.0, max_x=0.0, step=0.01):
+#    out = bytearray()
+#    x = min_x
+#    for _ in range(LUT_LEN):
+#        val = math.exp(x)
+#        out += struct.pack("<f", float(val))  # float32 little endian
+#        x += step
+#    return bytes(out)
+#
+#lut_blob = build_exp_lut_real(LUT_MIN, LUT_MAX, STEP)
+
 def align_up(x, a=16):
     return (x + (a - 1)) & ~(a - 1)
 
@@ -1744,6 +1763,11 @@ sections.append(";; --- layer list (ALL ops) — FULL DUMP ---")
 sections.extend(layer_meta_full)
 sections.append("")
 
+#data_sections.append(";; --- LUT (exp) (f32 little-endian) ---")
+#data_sections.append(f";; bytes: {len(lut_blob)} @ base {LUT_BASE}")
+#data_sections.append(wat_data_from_bytes(lut_blob, LUT_BASE))
+#data_sections.append("")
+
 data_sections.append(";; --- WEIGHTS (raw bytes) ---")
 data_sections.append(f";; bytes: {kernel_bytes} @ base {kernel_base}")
 data_sections.append(wat_data_from_bytes(bytes(weights_raw), kernel_base))
@@ -1775,6 +1799,7 @@ data_sections.append(wat_data_from_bytes(bytes(params_blob), params_base))
 data_sections.append("")
 
 mem_end = max(
+    #LUT_BASE + LUT_BYTES,
     kernel_base + kernel_bytes,
     bias_base + bias_bytes,
     mul_base + mul_bytes,

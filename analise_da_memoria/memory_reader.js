@@ -14,6 +14,17 @@ export function readByte(addr) {
 }
 
 /**
+ * Lê 1 byte como Int8 (signed)
+ */
+export function readInt8(addr) {
+    if (addr < 0 || addr >= memory_simulated.length) {
+        throw new Error("Endereço fora da memória");
+    }
+
+    return view.getInt8(addr);
+}
+
+/**
  * Lê 4 bytes little-endian como Uint32
  */
 export function readInt32(addr) {

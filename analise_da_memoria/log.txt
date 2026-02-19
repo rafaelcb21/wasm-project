@@ -14,3 +14,6 @@ SLOT1_BASE            : 2402624 → 3004735 (602112 bytes) (1B/elem, ~602112 ele
 SLOT2_BASE            : 3004736 → 3670015 (665280 bytes) (1B/elem, ~665280 elems)
 
 ===============================================
+
+base = PARAMS_BASE + layer_idx * LP_SIZE
+layerparam_base => fornece o indice inicial dos parametros de uma determinada camada
