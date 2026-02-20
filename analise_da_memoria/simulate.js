@@ -351,6 +351,70 @@ console.log("28 ->", "out_w = ", readInt32Signed(1800156));
 // 27 -> out_h =  1
 // 28 -> out_w =  1
 
+// QUANTIZE L0
+console.log("============================");
+console.log("QUANTIZE L0");
+console.log("0 -> ", "op_type = ", readInt32Signed(1792736));
+console.log("1 -> ", "act = ", readInt32Signed(1792740));
+console.log("2 -> ", "flags = ", readInt32Signed(1792744));
+console.log("3 -> ", "in_ptr = " , readInt32Signed(1792748));
+console.log("4 -> ", "out_ptr = ", readInt32Signed(1792752));
+console.log("5 -> ", "in_h = ", readInt32Signed(1792756));
+console.log("6 -> ", "in_w = ", readInt32Signed(1792760));
+console.log("7 -> ", "cin = ", readInt32Signed(1792764));
+console.log("8 -> ", "cout = ", readInt32Signed(1792768));
+console.log("9 -> ", "kh = ", readInt32Signed(1792772));
+console.log("10 ->", "kw = ", readInt32Signed(1792776));
+console.log("11 ->", "stride_h = ", readInt32Signed(1792780));
+console.log("12 ->", "stride_w = ", readInt32Signed(1792784));
+console.log("13 ->", "dil_h = ", readInt32Signed(1792788));
+console.log("14 ->", "dil_w = ", readInt32Signed(1792792));
+console.log("15 ->", "pad_t = ", readInt32Signed(1792796));
+console.log("16 ->", "pad_b = ", readInt32Signed(1792800));
+console.log("17 ->", "pad_l = ", readInt32Signed(1792804));
+console.log("18 ->", "pad_r = ", readInt32Signed(1792808));
+console.log("19 ->", "wptr = ", readInt32Signed(1792812));
+console.log("20 ->", "bias_ptr = ", readInt32Signed(1792816));
+console.log("21 ->", "mul_ptr = ", readInt32Signed(1792820));
+console.log("22 ->", "shift_ptr = ", readInt32Signed(1792824));
+console.log("23 ->", "q6_ptr = ", readInt32Signed(1792828));
+console.log("24 ->", "zx = ", readInt32Signed(1792832));
+console.log("25 ->", "zw = ", readInt32Signed(1792836));
+console.log("26 ->", "zy = ", readInt32Signed(1792840));
+console.log("27 ->", "out_h = ", readInt32Signed(1792844));
+console.log("28 ->", "out_w = ", readInt32Signed(1792848));
+
+// QUANTIZE L0
+// 0 ->  op_type =  7
+// 1 ->  act =  0
+// 2 ->  flags =  0
+// 3 ->  in_ptr =  1800512
+// 4 ->  out_ptr =  1800512
+// 5 ->  in_h =  224
+// 6 ->  in_w =  224
+// 7 ->  cin =  3
+// 8 ->  cout =  3
+// 9 ->  kh =  1073741824
+// 10 -> kw =  1
+// 11 -> stride_h =  0
+// 12 -> stride_w =  0
+// 13 -> dil_h =  1
+// 14 -> dil_w =  1
+// 15 -> pad_t =  1800512
+// 16 -> pad_b =  0
+// 17 -> pad_l =  0
+// 18 -> pad_r =  0
+// 19 -> wptr =  2048
+// 20 -> bias_ptr =  0
+// 21 -> mul_ptr =  0
+// 22 -> shift_ptr =  0
+// 23 -> q6_ptr =  0
+// 24 -> zx =  127
+// 25 -> zw =  0
+// 26 -> zy =  -1
+// 27 -> out_h =  224
+// 28 -> out_w =  224
+
 ///////////////////////////////////////////////////
 // 0 ->  op_type =  7
 // 1 ->  act =  0

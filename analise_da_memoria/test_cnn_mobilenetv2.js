@@ -1,6 +1,6 @@
 import fs from "fs";
 
-const IMAGE_PATH = "aviao_uint8_bgr.raw";
+const IMAGE_PATH = "aviao_uint8.raw";
 const WASM_PATH = "main.wasm";
 const LABELS_PATH = "imagenet_labels.txt";
 
@@ -27,6 +27,7 @@ const NUM_CLASSES = 1000;
     env: {
       log: (value) => console.log("LOG:", value),
       logf: (value) => console.log("LOGF:", value),
+      log64: (value) => console.log("LOG64:", value),
     }
   });
 
