@@ -1577,6 +1577,7 @@
     (local $wptr      i32)
     (local $bias_ptr  i32)
     (local $mul_ptr   i32)
+    (local $shift_ptr i32)
     (local $q6_ptr    i32)
     (local $zx        i32)
     (local $zw        i32)
@@ -1601,6 +1602,7 @@
     (local $b         i32)
     (local $m         i32)
     (local $q6        i32)
+    (local $shift     i32)
 
     (local $i         i32)
     (local $j         i32)
@@ -1653,7 +1655,7 @@
     ;; act (1)
     local.get $base
     i32.const 1
-    i32.const 1
+    i32.const 2
     i32.shl
     i32.add
     i32.load align=4
@@ -1839,6 +1841,15 @@
     i32.load align=4
     local.set $mul_ptr
 
+    ;; shift_ptr (22)
+    local.get $base
+    i32.const 22
+    i32.const 2
+    i32.shl
+    i32.add
+    i32.load align=4
+    local.set $shift_ptr
+
     ;; q6_ptr (23)
     local.get $base
     i32.const 23
@@ -1920,7 +1931,7 @@
     local.get $cin
     i32.mul
     i32.mul
-    local.set $w_per_oc
+    local.set $w_per_oc ;; quantidade de pesos por canal 3x3x3 = 27
 
     ;; =========================
     ;; loops: oc / i_out / j_out / ki / kj
@@ -1966,6 +1977,29 @@
         i32.load align=4
         local.set $m
 
+        ;; shift = load<i32>(shift_ptr + oc*4)
+        local.get $shift_ptr
+        local.get $oc
+        i32.const 2
+        i32.shl
+        i32.add
+        i32.load align=4
+        local.set $shift
+
+        ;;local.get $layer_idx
+        ;;i32.const 1
+        ;;i32.eq
+        ;;if
+        ;;  local.get $shift
+        ;;  call $log
+        ;;end
+
+        ;; Calcula o shift real: 31 - (-8) = 39
+        i32.const 31
+        local.get $shift
+        i32.sub
+        local.set $shift ;; Agora $shift é 39
+
         ;; q6 = (q6_ptr != 0) ? load<i32>(q6_ptr + oc*4) : 0
         local.get $q6_ptr
         i32.eqz
@@ -1984,13 +2018,29 @@
         )
         local.set $q6
 
-        ;; baseWoc = wptr + oc * w_per_oc
+        ;;local.get $layer_idx
+        ;;i32.const 1
+        ;;i32.eq
+        ;;if
+        ;;  local.get $q6
+        ;;  call $log
+        ;;end
+
+        ;; baseWoc = wptr + oc * w_per_oc ;; base dos pesos onde eles estao
         local.get $wptr
         local.get $oc
         local.get $w_per_oc
         i32.mul
         i32.add
         local.set $baseWoc
+
+        local.get $layer_idx
+        i32.const 1
+        i32.eq
+        if
+          local.get $baseWoc
+          call $log
+        end
 
         ;; i_out = 0
         i32.const 0
@@ -2082,6 +2132,7 @@
                       i32.lt_s
                       br_if $inc_ki
 
+                      ;; row_img >= in_h
                       local.get $row_img
                       local.get $in_h
                       i32.ge_s
@@ -2169,12 +2220,28 @@
                                 i32.add
                                 local.set $idx
 
+                                ;;local.get $layer_idx
+                                ;;i32.const 1
+                                ;;i32.eq
+                                ;;if
+                                ;;  local.get $idx
+                                ;;  call $log
+                                ;;end
+
                                 ;; tmp = load<i8>(in_ptr + idx)
                                 local.get $in_ptr
                                 local.get $idx
                                 i32.add
                                 i32.load8_s
                                 local.set $tmp
+
+                                ;;local.get $layer_idx
+                                ;;i32.const 1
+                                ;;i32.eq
+                                ;;if
+                                ;;  local.get $tmp
+                                ;;  call $log
+                                ;;end
 
                                 ;; pos = ((ki*kw + kj) * cin) + c
                                 local.get $ki
@@ -2246,6 +2313,15 @@
                 i32.add
                 local.set $outIdx
 
+                
+                ;;local.get $layer_idx
+                ;;i32.const 1
+                ;;i32.eq
+                ;;if
+                ;;  local.get $acc
+                ;;  call $log
+                ;;end
+
                 ;; =========================
                 ;; REQUANT + zp_y + activation + clamp + store8
                 ;; =========================
@@ -2260,33 +2336,71 @@
 
                 ;; RSHIFT = 31
                 ;; nudge = 1 << (31-1) = 1<<30
+                ;; i64.const 1
+                ;; i64.const 30
+                ;; i64.shl
+                ;; local.set $nudge
+
+                ;;local.get $layer_idx
+                ;;i32.const 1
+                ;;i32.eq
+                ;;if
+                ;;  local.get $shift
+                ;;  call $log
+                ;;end
+
+                ;; nudge = 1 << (shift - 1)
                 i64.const 1
-                i64.const 30
+                local.get $shift
+                i32.const 1
+                i32.sub
+                i64.extend_i32_s
                 i64.shl
                 local.set $nudge
 
-                ;; if (p < 0) p -= nudge else p += nudge   (rounding)
+                ;;local.get $layer_idx
+                ;;i32.const 1
+                ;;i32.eq
+                ;;if
+                ;;  local.get $nudge
+                ;;  call $log64
+                ;;end
+
                 local.get $p
-                i64.const 0
-                i64.lt_s
-                (if
-                  (then
-                    local.get $p
-                    local.get $nudge
-                    i64.sub
-                    local.set $p
-                  )
-                  (else
-                    local.get $p
-                    local.get $nudge
-                    i64.add
-                    local.set $p
-                  )
-                )
+                local.get $nudge
+                i64.add
+                local.set $p
+
+                ;; if (p < 0) p -= nudge else p += nudge   (rounding)
+                ;;local.get $p
+                ;;i64.const 0
+                ;;i64.lt_s
+                ;;(if
+                ;;  (then
+                ;;    local.get $p
+                ;;    local.get $nudge
+                ;;    i64.sub
+                ;;    local.set $p
+                ;;  )
+                ;;  (else
+                ;;    local.get $p
+                ;;    local.get $nudge
+                ;;    i64.add
+                ;;    local.set $p
+                ;;  )
+                ;;)
 
                 ;; y = (i32)(p >> 31)
+                ;; local.get $p
+                ;; i64.const 31
+                ;; i64.shr_s
+                ;; i32.wrap_i64
+                ;; local.set $y
+
+                ;; 3. Shift à direita usando o valor dinâmico carregado
                 local.get $p
-                i64.const 31
+                local.get $shift
+                i64.extend_i32_s
                 i64.shr_s
                 i32.wrap_i64
                 local.set $y
@@ -2298,7 +2412,7 @@
                 local.set $y
 
                 ;; -------- activation --------
-                ;; act == RELU (1): y = max(y, zy)
+                  ;; act == RELU (1): y = max(y, zy)
                 local.get $act
                 i32.const 1
                 i32.eq
@@ -2316,7 +2430,7 @@
                   )
                 )
                 
-                ;; act == RELU6 (3): clamp y to [zy, q6_abs]
+                ;; act == c (3): clamp y to [zy, q6_abs]
                 local.get $act
                 i32.const 3
                 i32.eq
@@ -2415,6 +2529,13 @@
                 local.get $y
                 i32.store8
 
+                local.get $layer_idx
+                i32.const 1
+                i32.eq
+                if
+                  local.get $y
+                  call $log
+                end
 
                 ;; j_out++
                 local.get $j_out
@@ -2462,7 +2583,7 @@
 
     ;; base
     local.get $layer_idx
-    call $layerparam_base
+    call $layerparam_base ;; 1792736 + 1 * 116 = 1792852
     local.set $base
 
     ;; in_ptr (3)
