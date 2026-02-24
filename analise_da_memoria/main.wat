@@ -333,6 +333,154 @@
     )
   )
 
+
+  ;; ============================================================
+  ;; saturating_rounding_doubling_high_mul
+  ;; ============================================================
+  (func $saturating_rounding_doubling_high_mul
+    (export "saturating_rounding_doubling_high_mul")
+    (param $a i32)
+    (param $b i32)
+    (result i32)
+
+    (local $ab i64)
+
+    ;; ------------------------------------------------------------
+    ;; Caso especial: INT32_MIN * INT32_MIN
+    ;; ------------------------------------------------------------
+
+    local.get $a
+    i32.const -2147483648
+    i32.eq
+
+    local.get $b
+    i32.const -2147483648
+    i32.eq
+
+    i32.and
+    if
+      i32.const 2147483647
+      return
+    end
+
+    ;; ------------------------------------------------------------
+    ;; ab = (i64)a * (i64)b
+    ;; ------------------------------------------------------------
+
+    local.get $a
+    i64.extend_i32_s
+
+    local.get $b
+    i64.extend_i32_s
+
+    i64.mul
+    local.set $ab
+
+    ;; ------------------------------------------------------------
+    ;; (ab + (1<<30)) >> 31
+    ;; ------------------------------------------------------------
+
+    local.get $ab
+    i64.const 1073741824   ;; 1 << 30
+    i64.add
+
+    i64.const 31
+    i64.shr_s
+
+    i32.wrap_i64
+  )
+
+  ;; ============================================================
+  ;; rounding_divide_by_pot
+  ;; ============================================================
+  (func $rounding_divide_by_pot
+    (export "rounding_divide_by_pot")
+    (param $x i32)
+    (param $exponent i32)
+    (result i32)
+
+    (local $nudge i32)
+
+    ;; if exponent <= 0 return x
+
+    local.get $exponent
+    i32.const 0
+    i32.le_s
+    if
+      local.get $x
+      return
+    end
+
+    ;; nudge = 1 << (exponent - 1)
+
+    i32.const 1
+    local.get $exponent
+    i32.const 1
+    i32.sub
+    i32.shl
+    local.set $nudge
+
+    ;; if x >= 0
+
+    local.get $x
+    i32.const 0
+    i32.ge_s
+    if
+      ;; (x + nudge - 1) >> exponent
+
+      local.get $x
+      local.get $nudge
+      i32.add
+      i32.const 1
+      i32.sub
+
+      local.get $exponent
+      i32.shr_s
+
+      return
+    end
+
+    ;; else (x + nudge) >> exponent
+
+    local.get $x
+    local.get $nudge
+    i32.add
+
+    local.get $exponent
+    i32.shr_s
+  )
+
+  ;; ============================================================
+  ;; multiply_by_quantized_multiplier
+  ;; ============================================================
+  (func $multiply_by_quantized_multiplier
+    (export "multiply_by_quantized_multiplier")
+    (param $x i32)
+    (param $multiplier i32)
+    (param $shift i32)
+    (result i32)
+
+    (local $tmp i32)
+
+    ;; tmp = SRDHM(x, multiplier)
+
+    local.get $x
+    local.get $multiplier
+    call $saturating_rounding_doubling_high_mul
+    local.set $tmp
+
+    ;; return rounding_divide_by_pot(tmp, -shift)
+
+    local.get $tmp
+
+    i32.const 0
+    local.get $shift
+    i32.sub
+
+    call $rounding_divide_by_pot
+  )
+
+
   (func $exp_q15 (param $x i32) (result i32)
     ;; x já está arredondado em [-11..0]
 
@@ -431,307 +579,6 @@
     i32.add                 ;; 1792736 + 0 * 116 , 1792736 + 1 * 116 , 1792736 + 2*116 ...
                             ;; 1792736 + 64 * 116 = 1.800.160 posicao inicial na memoria da camada FC
   )
-
-  ;; Helpers para quantização Q31
-  (func $saturating_rounding_doubling_high_mul (param $a i32) (param $b i32) (result i32)
-    (local $ab i64) ;; a -> x
-    (local $nudge i64) ;; b -> m
-    (local $result i32)
-
-    ;;local.get $a
-    ;;call $log
-
-    ;;local.get $b
-    ;;call $log
-
-    ;; Caso especial INT32_MIN * INT32_MIN
-    local.get $a
-    i32.const -2147483648
-    i32.eq
-    local.get $b
-    i32.const -2147483648
-    i32.eq
-    i32.and
-    (if
-      (then
-        i32.const 2147483647
-        return
-      )
-    )
-
-    ;; ab = (int64)a * b
-    local.get $a
-    i64.extend_i32_s
-    local.get $b
-    i64.extend_i32_s
-    i64.mul
-    local.set $ab
-
-    ;;local.get $ab
-    ;;call $log64
-
-    i64.const 1073741824
-    local.set $nudge
-
-    ;; nudge
-    ;;local.get $ab
-    ;;i64.const 0
-    ;;i64.ge_s
-    ;;(if
-    ;;  (then
-    ;;    i64.const 1073741824 ;; +(1<<30)
-    ;;    local.set $nudge
-    ;;  )
-    ;;  (else
-    ;;    i64.const -1073741824 ;; -(1<<30)
-    ;;    local.set $nudge
-    ;;  )
-    ;;)
-
-    ;;local.get $nudge
-    ;;call $log64
-
-    ;; (ab + nudge) >> 31
-    local.get $ab
-    local.get $nudge
-    i64.add
-    i64.const 31
-    i64.shr_s
-    i32.wrap_i64
-    local.set $result
-
-    ;;local.get $result
-    ;;call $log
-
-    local.get $result
-
-
-  )
-
-  (func $rounding_divide_by_pot
-    (param $x i32)
-    (param $exponent i32)
-    (result i32)
-
-    (local $mask i32)
-    (local $remainder i32)
-    (local $threshold i32)
-    (local $result i32)
-
-    ;; local.get $x
-    ;; call $log
-    ;; local.get $exponent
-    ;; call $log
-
-    ;; mask = (1 << exponent) - 1
-    i32.const 1
-    local.get $exponent
-    i32.shl
-    i32.const 1
-    i32.sub
-    local.set $mask
-
-    ;; remainder = x & mask
-    local.get $x
-    local.get $mask
-    i32.and
-    local.set $remainder
-
-    ;; threshold = mask >> 1
-    local.get $mask
-    i32.const 1
-    i32.shr_u
-    local.set $threshold
-
-    ;; if x < 0 → threshold++
-    local.get $x
-    i32.const 0
-    i32.lt_s
-    (if
-      (then
-        local.get $threshold
-        i32.const 1
-        i32.add
-        local.set $threshold
-      )
-    )
-
-    ;; base = x >> exponent
-    local.get $x
-    local.get $exponent
-    i32.shr_s
-    local.set $result
-
-    ;; if remainder > threshold → result++
-    local.get $remainder
-    local.get $threshold
-    i32.ge_s
-    (if
-      (then
-        local.get $result
-        i32.const 1
-        i32.add
-        local.set $result
-      )
-    )
-
-    ;;local.get $result
-    ;;call $log
-    ;;i32.const 999
-    ;;call $log
-
-    local.get $result
-  )
-
-
-  ;;(func $rounding_divide_by_pot
-  ;;      (param $x i32) (param $exponent i32) (result i32)
-;;
-  ;;  (local $mask i32)
-  ;;  (local $remainder i32)
-  ;;  (local $threshold i32)
-  ;;  (local $result i32)
-;;
-  ;;  ;; mask = (1 << exponent) - 1
-  ;;  i32.const 1
-  ;;  local.get $exponent
-  ;;  i32.shl
-  ;;  i32.const 1
-  ;;  i32.sub
-  ;;  local.set $mask
-;;
-  ;;  ;; remainder
-  ;;  local.get $x
-  ;;  local.get $mask
-  ;;  i32.and
-  ;;  local.set $remainder
-;;
-  ;;  ;; threshold = mask >> 1
-  ;;  local.get $mask
-  ;;  i32.const 1
-  ;;  i32.shr_u
-  ;;  local.set $threshold
-;;
-  ;;  ;; if x < 0 → threshold++
-  ;;  local.get $x
-  ;;  i32.const 0
-  ;;  i32.lt_s
-  ;;  (if
-  ;;    (then
-  ;;      local.get $threshold
-  ;;      i32.const 1
-  ;;      i32.add
-  ;;      local.set $threshold
-  ;;    )
-  ;;  )
-;;
-  ;;  ;; base
-  ;;  local.get $x
-  ;;  local.get $exponent
-  ;;  i32.shr_s
-  ;;  local.set $result
-;;
-  ;;  ;; rounding
-  ;;  ;;local.get $result      ;; base
-  ;;  local.get $remainder
-  ;;  local.get $threshold
-  ;;  i32.ge_s               ;; remainder > threshold
-  ;;  (if (result i32)
-  ;;    (then i32.const 1)
-  ;;    (else i32.const 0)
-  ;;  )
-  ;;  i32.add
-;;
-  ;;)
-
-  (func $multiply_by_quantized_multiplier
-    (param $x i32)      ;; acc   -8478
-    (param $m i32)      ;; m      1728771302
-    (param $shift i32)  ;; shift -11
-    (result i32)
-
-    (local $result i32)
-
-    ;;local.get $x
-    ;;call $log
-    
-    ;; Se shift > 0 → left shift ANTES
-    local.get $shift
-    i32.const 0
-    i32.gt_s
-    (if
-      (then
-        local.get $x
-        i32.const 1
-        local.get $shift
-        i32.shl
-        i32.mul
-        local.set $x
-      )
-    )
-
-    ;;local.get $x
-    ;;call $log
-
-    ;; Log the result if m is 1728771302
-    ;;local.get $m
-    ;;i32.const 1728771302
-    ;;i32.eq
-    ;;(if
-    ;;  (then
-    ;;    local.get $x ;; -8478
-    ;;    call $log
-    ;;  )
-    ;;)
-
-    ;; Primeiro high mul (Q31)
-    local.get $x ;; -8478
-    local.get $m ;; 1728771302
-    call $saturating_rounding_doubling_high_mul
-    local.set $result ;; -6826
-
-    ;;local.get $x
-    ;;call $log
-
-    ;;local.get $m
-    ;;call $log
-
-    ;;local.get $result
-    ;;call $log
-
-
-    ;; local.get $m
-    ;; i32.const 1728771302
-    ;; i32.eq
-    ;; (if
-    ;;   (then
-    ;;     local.get $result ;; -6826
-    ;;     call $log
-    ;;   )
-    ;; )
-
-
-    ;; Se shift < 0 → divide
-    local.get $shift
-    i32.const 0
-    i32.lt_s
-    (if
-        (then
-            local.get $result  ;; -6826
-            i32.const 0
-            local.get $shift    ;;-11
-            i32.sub
-            call $rounding_divide_by_pot
-            local.set $result            
-        )
-    )
-
-    local.get $result
-  )
-
-
-
-
 
   (func $depthwise_conv2d (export "depthwise_conv2d") (param $layer_idx i32)
     (local $base     i32)
@@ -1904,9 +1751,6 @@
     i32.load align=4
     local.set $out_w
 
-    ;; =========================
-
-
     ;; bottom = pad_t + in_h;
     local.get $pad_t
     local.get $in_h
@@ -1938,153 +1782,130 @@
     ;; com dilatação: row = i + ki*dil_h, col = j + kj*dil_w
     ;; =========================
 
-    ;; oc = 0
+    ;; i_out = 0
     i32.const 0
-    local.set $oc
+    local.set $i_out
 
-    (block $exit_oc
-      (loop $loop_oc
+    (block $exit_i
+      (loop $loop_i
 
-        ;; if (oc >= cout) break;
-        local.get $oc
-        local.get $cout
+        ;; if (i_out >= out_h) break;
+        local.get $i_out
+        local.get $out_h
         i32.ge_s
-        br_if $exit_oc
+        br_if $exit_i
 
-        ;; baseOutOC = out_ptr + oc * plane_out
-        local.get $out_ptr
-        local.get $oc
-        local.get $plane_out
+        ;; i = i_out * stride_h
+        local.get $i_out
+        local.get $stride_h
         i32.mul
-        i32.add
-        local.set $baseOutOC
+        local.set $i
 
-        ;; b = load<i32>(bias_ptr + oc*4)
-        local.get $bias_ptr
-        local.get $oc
-        i32.const 2
-        i32.shl
-        i32.add
-        i32.load align=4
-        local.set $b
-
-        ;; m = load<i32>(mul_ptr + oc*4)
-        local.get $mul_ptr
-        local.get $oc
-        i32.const 2
-        i32.shl
-        i32.add
-        i32.load align=4
-        local.set $m
-
-        ;; shift = load<i32>(shift_ptr + oc*4)
-        local.get $shift_ptr
-        local.get $oc
-        i32.const 2
-        i32.shl
-        i32.add
-        i32.load align=4
-        local.set $shift
-
-        ;;local.get $layer_idx
-        ;;i32.const 1
-        ;;i32.eq
-        ;;if
-        ;;  local.get $shift
-        ;;  call $log
-        ;;end
-
-        ;; Calcula o shift real: 31 - (-8) = 39
-        i32.const 31
-        local.get $shift
-        i32.sub
-        local.set $shift ;; Agora $shift é 39
-
-        ;; q6 = (q6_ptr != 0) ? load<i32>(q6_ptr + oc*4) : 0
-        local.get $q6_ptr
-        i32.eqz
-        (if (result i32)
-          (then
-            i32.const 0
-          )
-          (else
-            local.get $q6_ptr
-            local.get $oc
-            i32.const 2
-            i32.shl
-            i32.add
-            i32.load align=4
-          )
-        )
-        local.set $q6
-
-        ;;local.get $layer_idx
-        ;;i32.const 1
-        ;;i32.eq
-        ;;if
-        ;;  local.get $q6
-        ;;  call $log
-        ;;end
-
-        ;; baseWoc = wptr + oc * w_per_oc ;; base dos pesos onde eles estao
-        local.get $wptr
-        local.get $oc
-        local.get $w_per_oc
-        i32.mul
-        i32.add
-        local.set $baseWoc
-
-        local.get $layer_idx
-        i32.const 1
-        i32.eq
-        if
-          local.get $baseWoc
-          call $log
-        end
-
-        ;; i_out = 0
+        ;; j_out = 0
         i32.const 0
-        local.set $i_out
+        local.set $j_out
 
-        (block $exit_i
-          (loop $loop_i
+        (block $exit_j
+          (loop $loop_j
 
-            ;; if (i_out >= out_h) break;
-            local.get $i_out
-            local.get $out_h
+            ;; if (j_out >= out_w) break;
+            local.get $j_out
+            local.get $out_w
             i32.ge_s
-            br_if $exit_i
+            br_if $exit_j
 
-            ;; i = i_out * stride_h
-            local.get $i_out
-            local.get $stride_h
+            ;; j = j_out * stride_w
+            local.get $j_out
+            local.get $stride_w
             i32.mul
-            local.set $i
+            local.set $j
 
-            ;; j_out = 0
+            ;; oc = 0
             i32.const 0
-            local.set $j_out
+            local.set $oc
 
-            (block $exit_j
-              (loop $loop_j
+            (block $exit_oc
+              (loop $loop_oc
 
-                ;; if (j_out >= out_w) break;
-                local.get $j_out
-                local.get $out_w
+                ;; if (oc >= cout) break;
+                local.get $oc
+                local.get $cout
                 i32.ge_s
-                br_if $exit_j
+                br_if $exit_oc
 
-                ;; j = j_out * stride_w
-                local.get $j_out
-                local.get $stride_w
+                ;; out_index = ((i_out * out_w) + j_out) * cout + oc
+
+                local.get $i_out
+                local.get $out_w
                 i32.mul
-                local.set $j
 
-                ;; acc = b
+                local.get $j_out
+                i32.add
+
+                local.get $cout
+                i32.mul
+
+                local.get $oc
+                i32.add
+
+                local.set $outIdx
+
+                ;; b = load<i32>(bias_ptr + oc*4)
+                local.get $bias_ptr
+                local.get $oc
+                i32.const 2
+                i32.shl
+                i32.add
+                i32.load align=4
+                local.set $b
+
+                ;; m = load<i32>(mul_ptr + oc*4)
+                local.get $mul_ptr
+                local.get $oc
+                i32.const 2
+                i32.shl
+                i32.add
+                i32.load align=4
+                local.set $m
+
+                ;; shift = load<i32>(shift_ptr + oc*4)
+                local.get $shift_ptr
+                local.get $oc
+                i32.const 2
+                i32.shl
+                i32.add
+                i32.load align=4
+                local.set $shift
+
+                ;; q6 = (q6_ptr != 0) ? load<i32>(q6_ptr + oc*4) : 0
+                local.get $q6_ptr
+                i32.eqz
+                (if (result i32)
+                  (then
+                    i32.const 0
+                  )
+                  (else
+                    local.get $q6_ptr
+                    local.get $oc
+                    i32.const 2
+                    i32.shl
+                    i32.add
+                    i32.load align=4
+                  )
+                )
+                local.set $q6
+
+                ;; baseWoc = wptr + oc * w_per_oc ;; base dos pesos onde eles estao
+                local.get $wptr
+                local.get $oc
+                local.get $w_per_oc
+                i32.mul
+                i32.add
+                local.set $baseWoc
+
                 local.get $b
                 local.set $acc
 
-                ;; ki = 0
                 i32.const 0
                 local.set $ki
 
@@ -2220,28 +2041,12 @@
                                 i32.add
                                 local.set $idx
 
-                                ;;local.get $layer_idx
-                                ;;i32.const 1
-                                ;;i32.eq
-                                ;;if
-                                ;;  local.get $idx
-                                ;;  call $log
-                                ;;end
-
                                 ;; tmp = load<i8>(in_ptr + idx)
                                 local.get $in_ptr
                                 local.get $idx
                                 i32.add
                                 i32.load8_s
                                 local.set $tmp
-
-                                ;;local.get $layer_idx
-                                ;;i32.const 1
-                                ;;i32.eq
-                                ;;if
-                                ;;  local.get $tmp
-                                ;;  call $log
-                                ;;end
 
                                 ;; pos = ((ki*kw + kj) * cin) + c
                                 local.get $ki
@@ -2305,227 +2110,111 @@
                   )
                 )
 
-                ;; outIdx = i_out*out_w + j_out
-                local.get $i_out
-                local.get $out_w
-                i32.mul
-                local.get $j_out
-                i32.add
-                local.set $outIdx
-
-                
-                ;;local.get $layer_idx
-                ;;i32.const 1
-                ;;i32.eq
-                ;;if
-                ;;  local.get $acc
-                ;;  call $log
-                ;;end
-
-                ;; =========================
-                ;; REQUANT + zp_y + activation + clamp + store8
-                ;; =========================
-
-                ;; p = (i64)acc * (i64)m
+                ;; 1. Cálculo base (Requantização)
                 local.get $acc
-                i64.extend_i32_s
                 local.get $m
-                i64.extend_i32_s
-                i64.mul
-                local.set $p
-
-                ;; RSHIFT = 31
-                ;; nudge = 1 << (31-1) = 1<<30
-                ;; i64.const 1
-                ;; i64.const 30
-                ;; i64.shl
-                ;; local.set $nudge
-
-                ;;local.get $layer_idx
-                ;;i32.const 1
-                ;;i32.eq
-                ;;if
-                ;;  local.get $shift
-                ;;  call $log
-                ;;end
-
-                ;; nudge = 1 << (shift - 1)
-                i64.const 1
                 local.get $shift
-                i32.const 1
-                i32.sub
-                i64.extend_i32_s
-                i64.shl
-                local.set $nudge
-
-                ;;local.get $layer_idx
-                ;;i32.const 1
-                ;;i32.eq
-                ;;if
-                ;;  local.get $nudge
-                ;;  call $log64
-                ;;end
-
-                local.get $p
-                local.get $nudge
-                i64.add
-                local.set $p
-
-                ;; if (p < 0) p -= nudge else p += nudge   (rounding)
-                ;;local.get $p
-                ;;i64.const 0
-                ;;i64.lt_s
-                ;;(if
-                ;;  (then
-                ;;    local.get $p
-                ;;    local.get $nudge
-                ;;    i64.sub
-                ;;    local.set $p
-                ;;  )
-                ;;  (else
-                ;;    local.get $p
-                ;;    local.get $nudge
-                ;;    i64.add
-                ;;    local.set $p
-                ;;  )
-                ;;)
-
-                ;; y = (i32)(p >> 31)
-                ;; local.get $p
-                ;; i64.const 31
-                ;; i64.shr_s
-                ;; i32.wrap_i64
-                ;; local.set $y
-
-                ;; 3. Shift à direita usando o valor dinâmico carregado
-                local.get $p
-                local.get $shift
-                i64.extend_i32_s
-                i64.shr_s
-                i32.wrap_i64
-                local.set $y
-
-                ;; y += zy   (zp_y)
-                local.get $y
+                call $multiply_by_quantized_multiplier
                 local.get $zy
                 i32.add
                 local.set $y
 
-                ;; -------- activation --------
-                  ;; act == RELU (1): y = max(y, zy)
+                ;; --- INÍCIO DAS ATIVAÇÕES ---
+
+                ;; act == 1: RELU (y = max(y, zy))
                 local.get $act
                 i32.const 1
                 i32.eq
-                (if
-                  (then
-                    local.get $y
+                if
+                  local.get $y
+                  local.get $zy
+                  i32.lt_s
+                  if
                     local.get $zy
-                    i32.lt_s
-                    (if
-                      (then
-                        local.get $zy
-                        local.set $y
-                      )
-                    )
-                  )
-                )
-                
-                ;; act == c (3): clamp y to [zy, q6_abs]
+                    local.set $y
+                  end
+                end
+
+                ;; act == 3: RELU6 (Clamp entre lo e hi)
                 local.get $act
                 i32.const 3
                 i32.eq
-                (if
-                  (then
-                    ;; lo = zy
-                    local.get $zy
-                    local.set $lo
-                
-                    ;; hi = q6   (já é q6_abs = round(6/sy) + zy)
-                    local.get $q6
+                if
+                  ;; Configurar limites iniciais
+                  local.get $zy
+                  local.set $lo
+                  local.get $q6
+                  local.set $hi
+
+                  ;; if hi < lo: hi = lo
+                  local.get $hi
+                  local.get $lo
+                  i32.lt_s
+                  if
+                    local.get $lo
                     local.set $hi
+                  end
 
-                    ;; proteger faixa inválida (garantir hi >= lo)
-                    local.get $hi
-                    local.get $lo
-                    i32.lt_s
-                    (if
-                      (then
-                        local.get $lo
-                        local.set $hi
-                      )
-                    )
-                
-                    ;; hi = min(hi, 127)
-                    local.get $hi
+                  ;; Clamp hi a 127
+                  local.get $hi
+                  i32.const 127
+                  i32.gt_s
+                  if
                     i32.const 127
-                    i32.gt_s
-                    (if
-                      (then
-                        i32.const 127
-                        local.set $hi
-                      )
-                    )
-                
-                    ;; lo = max(lo, -128)
-                    local.get $lo
-                    i32.const -128
-                    i32.lt_s
-                    (if
-                      (then
-                        i32.const -128
-                        local.set $lo
-                      )
-                    )
-                
-                    ;; if (y < lo) y = lo
-                    local.get $y
-                    local.get $lo
-                    i32.lt_s
-                    (if
-                      (then
-                        local.get $lo
-                        local.set $y
-                      )
-                    )
-                
-                    ;; if (y > hi) y = hi
-                    local.get $y
-                    local.get $hi
-                    i32.gt_s
-                    (if
-                      (then
-                        local.get $hi
-                        local.set $y
-                      )
-                    )
-                  )
-                )
+                    local.set $hi
+                  end
 
-                ;; -------- final clamp [-128..127] --------
+                  ;; Clamp lo a -128
+                  local.get $lo
+                  i32.const -128
+                  i32.lt_s
+                  if
+                    i32.const -128
+                    local.set $lo
+                  end
+
+                  ;; Aplica o Clamp no valor y: max(lo, min(y, hi))
+                  local.get $y
+                  local.get $hi
+                  i32.gt_s
+                  if
+                    local.get $hi
+                    local.set $y
+                  end
+                  
+                  local.get $y
+                  local.get $lo
+                  i32.lt_s
+                  if
+                    local.get $lo
+                    local.set $y
+                  end
+                end
+
+                ;; --- FINAL CLAMP GLOBAL [-128, 127] ---
+                ;; Essencial para evitar overflow ao converter para i8 (byte)
                 local.get $y
                 i32.const 127
                 i32.gt_s
-                (if
-                  (then
-                    i32.const 127
-                    local.set $y
-                  )
-                )
+                if
+                  i32.const 127
+                  local.set $y
+                end
 
                 local.get $y
                 i32.const -128
                 i32.lt_s
-                (if
-                  (then
-                    i32.const -128
-                    local.set $y
-                  )
-                )
+                if
+                  i32.const -128
+                  local.set $y
+                end
 
-                ;; store8(out_ptr[oc][outIdx]) = (i8)y
-                local.get $baseOutOC
+                ;; store8(out_ptr + outIdx)
+
+                local.get $out_ptr
                 local.get $outIdx
                 i32.add
+
                 local.get $y
                 i32.store8
 
@@ -2537,33 +2226,33 @@
                   call $log
                 end
 
-                ;; j_out++
-                local.get $j_out
+                ;; oc++
+                local.get $oc
                 i32.const 1
                 i32.add
-                local.set $j_out
+                local.set $oc
 
-                br $loop_j
+                br $loop_oc
               )
             )
 
-            ;; i_out++
-            local.get $i_out
+            ;; j_out++
+            local.get $j_out
             i32.const 1
             i32.add
-            local.set $i_out
+            local.set $j_out
 
-            br $loop_i
+            br $loop_j
           )
         )
 
-        ;; oc++
-        local.get $oc
+        ;; i_out++
+        local.get $i_out
         i32.const 1
         i32.add
-        local.set $oc
+        local.set $i_out
 
-        br $loop_oc
+        br $loop_i
       )
     )
   )

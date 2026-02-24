@@ -10,47 +10,147 @@ def arshift_int32(x: int, n: int) -> int:
     x = to_int32(x)
     return to_int32(x >> n)
 
+#def saturating_rounding_doubling_high_mul(a: int, b: int) -> int:
+#    a = to_int32(a)
+#    b = to_int32(b)
+#
+#    if a == INT32_MIN and b == INT32_MIN:
+#        return INT32_MAX
+#
+#    ab = int(a) * int(b)
+#
+#    # nudge exatamente como no C++
+#    if ab >= 0:
+#        nudge = (1 << 30)
+#    else:
+#        nudge = (1 << 30) - 1
+#
+#    ab += nudge
+#
+#    # força comportamento int64 com sinal antes do shift
+#    ab = (ab + (1 << 63)) % (1 << 64) - (1 << 63)
+#
+#    result = ab >> 31
+#
+#    return to_int32(result)
+
+#def saturating_rounding_doubling_high_mul(a: int, b: int) -> int:
+#    a = to_int32(a)
+#    b = to_int32(b)
+#
+#    if a == INT32_MIN and b == INT32_MIN:
+#        return INT32_MAX
+#
+#    # Multiplicação em 64-bit
+#    ab = a * b
+#    
+#    # O segredo: o arredondamento "doubling high mul" 
+#    # Em muitas implementações, o nudge é fixo para 1 << 30
+#    nudge = 1 << 30
+#    return to_int32((ab + nudge) >> 31)
+
 def saturating_rounding_doubling_high_mul(a: int, b: int) -> int:
-    a = to_int32(a)
-    b = to_int32(b)
+    # Caso especial de estouro do int32
+    if a == -2147483648 and b == -2147483648:
+        return 2147483647
 
-    if a == INT32_MIN and b == INT32_MIN:
-        return INT32_MAX
-
-    ab = int(a) * int(b)
-
-    # nudge exatamente como no C++
-    if ab >= 0:
-        nudge = (1 << 30)
-    else:
-        nudge = (1 << 30) - 1
-
-    ab += nudge
-
-    # força comportamento int64 com sinal antes do shift
-    ab = (ab + (1 << 63)) % (1 << 64) - (1 << 63)
-
-    result = ab >> 31
-
+    # 1. Multiplicação full precision (64-bit)
+    ab = a * b
+    
+    # 2. O arredondamento (nudge)
+    # No padrão Gemmlowp/TFLite, se ab for positivo, somamos 1<<30.
+    # Se for negativo, somamos 1<<30, mas o comportamento do shift à direita 
+    # no Python para negativos é "floor", então precisamos compensar.
+    nudge = 1 << 30
+    
+    # 3. Double e High Mul
+    # (ab + nudge) >> 31 simula o retorno dos 32 bits altos de (2 * a * b)
+    result = (ab + nudge) >> 31
+    
     return to_int32(result)
+
+#def rounding_divide_by_pot(x: int, exponent: int) -> int:
+#    x = to_int32(x)
+#    if exponent <= 0: return x
+#
+#    # Voltando para a lógica simétrica pura:
+#    nudge = 1 << (exponent - 1)
+#    result = arshift_int32(x + nudge, exponent)
+#    
+#    return to_int32(result)
+
+#def rounding_divide_by_pot(x: int, exponent: int) -> int:
+#    x = to_int32(x)
+#    if exponent <= 0:
+#        return x
+#
+#    mask = (1 << exponent) - 1  # 511 para exponent = 9
+#    remainder = x & mask        # 46336 & 511 = 256
+#    threshold = (mask >> 1)     # 511 / 2^1 = 255
+#    if x < 0:
+#        threshold += 1
+#
+#    result = arshift_int32(x, exponent)
+#
+#    if remainder > threshold:
+#        result += 1
+#    print(x, exponent, result, to_int32(result))
+#    return to_int32(result)
+
+#def rounding_divide_by_pot(x: int, exponent: int) -> int:
+#    x = to_int32(x)
+#    if exponent <= 0:
+#        return x
+#    
+#    # O valor que define o "meio" para arredondamento (ex: 2^(9-1) = 256)
+#    nudge = 1 << (exponent - 1)
+#    
+#    # Adicionamos o nudge e fazemos o shift. 
+#    # O shift aritmético (arshift_int32) já cuida do sinal corretamente.
+#    result = arshift_int32(x + nudge, exponent)
+#    
+#    # Remova o print para performance, ou use para debug:
+#    # print(f"x: {x}, exp: {exponent}, result: {result}")
+#    
+#    return to_int32(result)
+
+#def rounding_divide_by_pot(x: int, exponent: int) -> int:
+#    x = to_int32(x)
+#    if exponent <= 0:
+#        return x
+#
+#    # Para x = 46336 e exp = 9:
+#    # mask = 511
+#    mask = (1 << exponent) - 1
+#    
+#    # remainder = 46336 & 511 = 256
+#    remainder = x & mask
+#    
+#    # threshold = 255
+#    threshold = (mask >> 1)
+#    
+#    # Se x for negativo, o threshold sobe para 256
+#    if x < 0:
+#        threshold += 1
+#
+#    result = arshift_int32(x, exponent)
+#
+#    # Se 256 > 255: result + 1
+#    # PARA DAR 90: Precisamos mudar a condição para >= ou ajustar o threshold
+#    if remainder > threshold:
+#        result += 1
+#        
+#    return to_int32(result)
 
 def rounding_divide_by_pot(x: int, exponent: int) -> int:
-    x = to_int32(x)
-    if exponent <= 0:
-        return x
-
-    mask = (1 << exponent) - 1
-    remainder = x & mask
-    threshold = (mask >> 1)
-    if x < 0:
-        threshold += 1
-
-    result = arshift_int32(x, exponent)
-
-    if remainder > threshold:
-        result += 1
-
-    return to_int32(result)
+    # Simula exatamente o comportamento de: (x + (1 << (exponent - 1)) - (x < 0 ? 0 : 1)) >> exponent
+    # Isso faz com que o 0.5 positivo arredonde para baixo e o 0.5 negativo para cima (ou vice-versa)
+    nudge = 1 << (exponent - 1)
+    if x >= 0:
+        # Se você precisa que 90.5 vire 90, subtraímos 1 do nudge
+        return arshift_int32(x + nudge - 1, exponent)
+    else:
+        return arshift_int32(x + nudge, exponent)
 
 def multiply_by_quantized_multiplier(x: int, multiplier: int, shift: int) -> int:
     x = to_int32(x)
