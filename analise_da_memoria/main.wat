@@ -873,6 +873,7 @@
     (local $pad_r     i32)
     (local $wptr      i32)
     (local $bias_ptr  i32)
+    (local $shift_ptr i32)
     (local $mul_ptr   i32)
     (local $q6_ptr    i32)
     (local $zx        i32)
@@ -1134,6 +1135,16 @@
     i32.load align=4
     local.set $mul_ptr
 
+    ;; shift_ptr (22)
+    local.get $base 
+    i32.const 22 
+    i32.const 2 
+    i32.shl 
+    i32.add 
+    i32.load align=4 
+    local.set 
+    $shift_ptr
+
     ;; q6_ptr (23)
     local.get $base
     i32.const 23
@@ -1220,452 +1231,145 @@
     ;; com dilatação: row = i + ki*dil_h, col = j + kj*dil_w
     ;; =========================
 
-    ;; oc = 0
-    i32.const 0
-    local.set $oc
-
-    (block $exit_oc
-      (loop $loop_oc
-
-        ;; if (oc >= cout) break;
-        local.get $oc
-        local.get $cout
+    ;; --- INÍCIO DOS LOOPS NHWC ---
+    
+    i32.const 0 local.set $i_out
+    (block $exit_i
+      (loop $loop_i
+        ;; if (i_out >= out_h) break;
+        local.get $i_out
+        local.get $out_h
         i32.ge_s
-        br_if $exit_oc
+        br_if $exit_i
 
-        ;; baseOutOC = out_ptr + oc * plane_out
-        local.get $out_ptr
-        local.get $oc
-        local.get $plane_out
-        i32.mul
-        i32.add
-        local.set $baseOutOC
-
-        ;; b = load<i32>(bias_ptr + oc*4)
-        local.get $bias_ptr
-        local.get $oc
-        i32.const 2
-        i32.shl
-        i32.add
-        i32.load align=4
-        local.set $b
-
-        ;; m = load<i32>(mul_ptr + oc*4)
-        local.get $mul_ptr
-        local.get $oc
-        i32.const 2
-        i32.shl
-        i32.add
-        i32.load align=4
-        local.set $m
-
-        ;; q6 = (q6_ptr != 0) ? load<i32>(q6_ptr + oc*4) : 0
-        local.get $q6_ptr
-        i32.eqz
-        (if (result i32)
-          (then
-            i32.const 0
-          )
-          (else
-            local.get $q6_ptr
-            local.get $oc
-            i32.const 2
-            i32.shl
-            i32.add
-            i32.load align=4
-          )
-        )
-        local.set $q6
-
-        ;; baseWoc = wptr + oc * w_per_oc
-        local.get $wptr
-        local.get $oc
-        local.get $w_per_oc
-        i32.mul
-        i32.add
-        local.set $baseWoc
-
-        ;; i_out = 0
-        i32.const 0
-        local.set $i_out
-
-        (block $exit_i
-          (loop $loop_i
-
-            ;; if (i_out >= out_h) break;
-            local.get $i_out
-            local.get $out_h
+        i32.const 0 local.set $j_out
+        (block $exit_j
+          (loop $loop_j
+            ;; if (j_out >= out_w) break;
+            local.get $j_out
+            local.get $out_w
             i32.ge_s
-            br_if $exit_i
+            br_if $exit_j
 
-            ;; i = i_out * stride_h
-            local.get $i_out
-            local.get $stride_h
-            i32.mul
-            local.set $i
-
-            ;; j_out = 0
-            i32.const 0
-            local.set $j_out
-
-            (block $exit_j
-              (loop $loop_j
-
-                ;; if (j_out >= out_w) break;
-                local.get $j_out
-                local.get $out_w
+            i32.const 0 local.set $oc
+            (block $exit_oc
+              (loop $loop_oc
+                ;; if (oc >= cout) break;
+                local.get $oc
+                local.get $cout
                 i32.ge_s
-                br_if $exit_j
+                br_if $exit_oc
 
-                ;; j = j_out * stride_w
-                local.get $j_out
-                local.get $stride_w
-                i32.mul
-                local.set $j
+                ;; --- Lógica de Acumulação ---
+                local.get $bias_ptr local.get $oc i32.const 2 i32.shl i32.add i32.load local.set $acc
 
-                ;; acc = b
-                local.get $b
-                local.set $acc
-
-                ;; ki = 0
-                i32.const 0
-                local.set $ki
-
+                i32.const 0 local.set $ki
                 (block $exit_ki
                   (loop $loop_ki
-
-                    ;; if (ki >= kh) break;
                     local.get $ki
                     local.get $kh
                     i32.ge_s
                     br_if $exit_ki
 
-                    ;; ---- alvo do "continue" do ki ----
-                    (block $inc_ki
+                    local.get $i_out local.get $stride_h i32.mul local.get $ki local.get $dil_h i32.mul i32.add local.set $row
+                    
+                    ;; Boundary Check Altura (se fora, pula para o próximo ki)
+                    (block $continue_ki
+                        local.get $row local.get $pad_t i32.lt_s br_if $continue_ki
+                        local.get $row local.get $pad_t local.get $in_h i32.add i32.ge_s br_if $continue_ki
 
-                      ;; row = i + ki*dil_h   (DILATAÇÃO AQUI)
-                      local.get $i
-                      local.get $ki
-                      local.get $dil_h
-                      i32.mul
-                      i32.add
-                      local.set $row
+                        i32.const 0 local.set $kj
+                        (block $exit_kj
+                          (loop $loop_kj
+                            local.get $kj local.get $kw i32.ge_s br_if $exit_kj
 
-                      ;; if (row < pad_t) continue;
-                      local.get $row
-                      local.get $pad_t
-                      i32.lt_s
-                      br_if $inc_ki
+                            local.get $j_out local.get $stride_w i32.mul local.get $kj local.get $dil_w i32.mul i32.add local.set $col
+                            
+                            ;; Boundary Check Largura
+                            (block $continue_kj
+                                local.get $col local.get $pad_l i32.lt_s br_if $continue_kj
+                                local.get $col local.get $pad_l local.get $in_w i32.add i32.ge_s br_if $continue_kj
 
-                      ;; if (row >= bottom) break;
-                      local.get $row
-                      local.get $bottom
-                      i32.ge_s
-                      br_if $exit_ki
+                                ;; INDEXAÇÃO NHWC INPUT
+                                local.get $row local.get $pad_t i32.sub local.get $in_w i32.mul
+                                local.get $col local.get $pad_l i32.sub i32.add
+                                local.get $cin i32.mul
+                                local.get $oc i32.add
+                                local.get $in_ptr i32.add i32.load8_s local.set $tmp
 
-                      ;; row_img  = row - pad_t
-                      local.get $row
-                      local.get $pad_t
-                      i32.sub
-                      local.set $row_img
+                                ;; INDEXAÇÃO KERNEL (Depthwise)
+                                local.get $ki local.get $kw i32.mul local.get $kj i32.add
+                                local.get $cout i32.mul
+                                local.get $oc i32.add
+                                local.get $wptr i32.add i32.load8_s local.set $w0
 
-                      ;; row_base = row_img * in_w
-                      local.get $row_img
-                      local.get $in_w
-                      i32.mul
-                      local.set $row_base
-
-                      ;; kj = 0
-                      i32.const 0
-                      local.set $kj
-
-                      (block $exit_kj
-                        (loop $loop_kj
-
-                          ;; if (kj >= kw) break;
-                          local.get $kj
-                          local.get $kw
-                          i32.ge_s
-                          br_if $exit_kj
-
-                          ;; ---- alvo do "continue" do kj ----
-                          (block $inc_kj
-
-                            ;; col = j + kj*dil_w   (DILATAÇÃO AQUI)
-                            local.get $j
-                            local.get $kj
-                            local.get $dil_w
-                            i32.mul
-                            i32.add
-                            local.set $col
-
-                            ;; if (col < pad_l) continue;
-                            local.get $col
-                            local.get $pad_l
-                            i32.lt_s
-                            br_if $inc_kj
-
-                            ;; if (col >= right) break;
-                            local.get $col
-                            local.get $right
-                            i32.ge_s
-                            br_if $exit_kj
-
-                            ;; col_img = col - pad_l
-                            local.get $col
-                            local.get $pad_l
-                            i32.sub
-                            local.set $col_img
-
-                            ;; ---------------------------------------------------
-                            ;; idx = oc * (in_h * in_w) + row_img * in_w + col_img
-                            ;; ---------------------------------------------------
-                            local.get $oc
-                            local.get $in_h
-                            local.get $in_w
-                            i32.mul
-                            i32.mul
-
-                            local.get $row_base
-                            local.get $col_img
-                            i32.add
-
-                            i32.add
-                            local.set $idx
-
-                            ;; input = load<i8>(in_ptr + idx)
-                            local.get $in_ptr
-                            local.get $idx
-                            i32.add
-                            i32.load8_s
-                            local.set $tmp
-
-                            ;; -------------------------------------------------
-                            ;; kernel index = oc*(kh*kw) + ki*kw + kj
-                            ;; -------------------------------------------------
-                            local.get $baseWoc
-                            local.get $ki
-                            local.get $kw
-                            i32.mul
-                            local.get $kj
-                            i32.add
-                            i32.add
-                            i32.load8_s
-                            local.set $w0
-
-                            ;; -----------------------------------------
-                            ;; acc += (input - zx) * (w - zw)
-                            ;; -----------------------------------------
-                            local.get $tmp
-                            local.get $zx
-                            i32.sub
-                            local.get $w0
-                            local.get $zw
-                            i32.sub
-                            i32.mul
-                            local.get $acc
-                            i32.add
-                            local.set $acc
-
-                            ;; kj++
-                            local.get $kj
-                            i32.const 1
-                            i32.add
-                            local.set $kj
-
+                                ;; acc += (input - zx) * (w - zw)
+                                local.get $tmp local.get $zx i32.sub
+                                local.get $w0 local.get $zw i32.sub
+                                i32.mul
+                                local.get $acc i32.add local.set $acc
+                            ) ;; fim continue_kj
+                            
+                            local.get $kj i32.const 1 i32.add local.set $kj
                             br $loop_kj
                           )
-
-                          ;; kj++
-                          local.get $kj
-                          i32.const 1
-                          i32.add
-                          local.set $kj
-                          br $loop_kj
                         )
-                      )
-                    )
+                    ) ;; fim continue_ki
 
-                    ;; ki++
-                    local.get $ki
-                    i32.const 1
-                    i32.add
-                    local.set $ki
+                    local.get $ki i32.const 1 i32.add local.set $ki
                     br $loop_ki
                   )
                 )
 
-                ;; outIdx = i_out*out_w + j_out
-                local.get $i_out
-                local.get $out_w
-                i32.mul
-                local.get $j_out
-                i32.add
-                local.set $outIdx
-
-                ;; -----------------------------------------
-                ;; y = SaturatingRoundingDoublingHighMul(acc, m)
-                ;; -----------------------------------------
-
+                ;; --- REQUANTIZAÇÃO E STORE (NHWC) ---
                 local.get $acc
-                local.get $m
-                call $saturating_rounding_doubling_high_mul
-                local.set $y
+                local.get $mul_ptr local.get $oc i32.const 2 i32.shl i32.add i32.load ;; Multiplier
+                local.get $shift_ptr local.get $oc i32.const 2 i32.shl i32.add i32.load ;; Shift
+                call $multiply_by_quantized_multiplier_3
+                local.get $zy i32.add local.set $y
 
-                ;; y += zy   (zp_y)
-                local.get $y
-                local.get $zy
-                i32.add
-                local.set $y
+                ;; ReLU / ReLU6
+                local.get $act i32.const 1 i32.eq (if (then local.get $y local.get $zy i32.lt_s (if (then local.get $zy local.set $y))))
+                local.get $act i32.const 3 i32.eq (if (then
+                  local.get $q6_ptr local.get $oc i32.const 2 i32.shl i32.add i32.load local.set $q6
+                  local.get $y local.get $q6 i32.gt_s (if (then local.get $q6 local.set $y))
+                  local.get $y local.get $zy i32.lt_s (if (then local.get $zy local.set $y))
+                ))
 
-                ;; -------- activation --------
-                ;; act == RELU (1): y = max(y, zy)
-                local.get $act
-                i32.const 1
-                i32.eq
-                (if
-                  (then
-                    local.get $y
-                    local.get $zy
-                    i32.lt_s
-                    (if
-                      (then
-                        local.get $zy
-                        local.set $y
-                      )
-                    )
-                  )
-                )
+                ;; Final Clamp i8
+                local.get $y i32.const 127 i32.gt_s (if (then i32.const 127 local.set $y))
+                local.get $y i32.const -128 i32.lt_s (if (then i32.const -128 local.set $y))
 
-                ;; act == RELU6 (3): clamp y to [zy, q6_abs]
-                local.get $act
-                i32.const 3
-                i32.eq
-                (if
-                  (then
-                    ;; lo = zy
-                    local.get $zy
-                    local.set $lo
+                ;; --- STORE NHWC OUTPUT ---
+                ;; idx = (i_out*out_w + j_out)*cout + oc
+                local.get $i_out local.get $out_w i32.mul local.get $j_out i32.add
+                local.get $cout i32.mul local.get $oc i32.add local.set $idx
+                
+                local.get $out_ptr local.get $idx i32.add
+                local.get $y i32.store8
 
-                    ;; hi = q6   (já é q6_abs = round(6/sy) + zy)
-                    local.get $q6
-                    local.set $hi
+                ;; local.get $layer_idx
+                ;; i32.const 2
+                ;; i32.eq
+                ;; if
+                ;;   local.get $y
+                ;;   call $log
+                ;; end
 
-                    ;; proteger faixa inválida (garantir hi >= lo)
-                    local.get $hi
-                    local.get $lo
-                    i32.lt_s
-                    (if
-                      (then
-                        local.get $lo
-                        local.set $hi
-                      )
-                    )
-
-                    ;; hi = min(hi, 127)
-                    local.get $hi
-                    i32.const 127
-                    i32.gt_s
-                    (if
-                      (then
-                        i32.const 127
-                        local.set $hi
-                      )
-                    )
-
-                    ;; lo = max(lo, -128)
-                    local.get $lo
-                    i32.const -128
-                    i32.lt_s
-                    (if
-                      (then
-                        i32.const -128
-                        local.set $lo
-                      )
-                    )
-
-                    ;; if (y < lo) y = lo
-                    local.get $y
-                    local.get $lo
-                    i32.lt_s
-                    (if
-                      (then
-                        local.get $lo
-                        local.set $y
-                      )
-                    )
-
-                    ;; if (y > hi) y = hi
-                    local.get $y
-                    local.get $hi
-                    i32.gt_s
-                    (if
-                      (then
-                        local.get $hi
-                        local.set $y
-                      )
-                    )
-                  )
-                )
-
-                ;; -------- final clamp [-128..127] --------
-                local.get $y
-                i32.const 127
-                i32.gt_s
-                (if
-                  (then
-                    i32.const 127
-                    local.set $y
-                  )
-                )
-
-                local.get $y
-                i32.const -128
-                i32.lt_s
-                (if
-                  (then
-                    i32.const -128
-                    local.set $y
-                  )
-                )
-
-                ;; store8(out_ptr[oc][outIdx]) = (i8)y
-                local.get $baseOutOC
-                local.get $outIdx
-                i32.add
-                local.get $y
-                i32.store8
-
-
-                ;; j_out++
-                local.get $j_out
-                i32.const 1
-                i32.add
-                local.set $j_out
-
-                br $loop_j
+                local.get $oc i32.const 1 i32.add local.set $oc
+                br $loop_oc
               )
-            )
+            ) ;; fim exit_oc
 
-            ;; i_out++
-            local.get $i_out
-            i32.const 1
-            i32.add
-            local.set $i_out
-
-            br $loop_i
+            local.get $j_out i32.const 1 i32.add local.set $j_out
+            br $loop_j
           )
-        )
+        ) ;; fim exit_j
 
-        ;; oc++
-        local.get $oc
-        i32.const 1
-        i32.add
-        local.set $oc
-
-        br $loop_oc
+        local.get $i_out i32.const 1 i32.add local.set $i_out
+        br $loop_i
       )
-    )
+    ) ;; fim exit_i
   )
 
   (func $conv2d (export "conv2d") (param $layer_idx i32)
@@ -2046,28 +1750,6 @@
     i32.mul
     local.set $w_per_oc ;; quantidade de pesos por canal 3x3x3 = 27
 
-    ;;local.get $layer_idx
-    ;;i32.const 1
-    ;;i32.eq
-    ;;if
-    ;;  local.get $bottom
-    ;;  call $log
-;;
-    ;;  local.get $right
-    ;;  call $log
-;;
-    ;;  local.get $plane_out
-    ;;  call $log
-;;
-    ;;  local.get $w_per_oc
-    ;;  call $log
-    ;;end
-
-    ;;LOG: 224
-    ;;LOG: 224
-    ;;LOG: 12544
-    ;;LOG: 27
-
     ;; =========================
     ;; loops: oc / i_out / j_out / ki / kj
     ;; com dilatação: row = i + ki*dil_h, col = j + kj*dil_w
@@ -2416,16 +2098,6 @@
                                 ;;if
                                 ;;  local.get $tmp
                                 ;;  call $log
-;;
-                                ;;  local.get $zx
-                                ;;  call $log
-;;
-                                ;;  local.get $w0
-                                ;;  call $log
-;;
-                                ;;  local.get $zw
-                                ;;  call $log
-                                ;;end
 
                                 ;; c++
                                 local.get $c
@@ -2574,13 +2246,13 @@
                 local.get $y
                 i32.store8
 
-                local.get $layer_idx
-                i32.const 1
-                i32.eq
-                if
-                  local.get $y
-                  call $log
-                end
+                ;;local.get $layer_idx
+                ;;i32.const 1
+                ;;i32.eq
+                ;;if
+                ;;  local.get $y
+                ;;  call $log
+                ;;end
 
                 ;; oc++
                 local.get $oc
@@ -3026,14 +2698,14 @@
         local.get $val0
         local.get $mul0
         local.get $shift0
-        call $multiply_by_quantized_multiplier
+        call $multiply_by_quantized_multiplier_3
         local.set $acc0
 
         ;; acc1 = multiply_by_quantized_multiplier(val1, mul1, shift1)
         local.get $val1
         local.get $mul1
         local.get $shift1
-        call $multiply_by_quantized_multiplier
+        call $multiply_by_quantized_multiplier_3
         local.set $acc1
 
         ;; sum = acc0 + acc1
@@ -3046,7 +2718,7 @@
         local.get $sum
         local.get $out_mul
         local.get $out_shift
-        call $multiply_by_quantized_multiplier
+        call $multiply_by_quantized_multiplier_3
         local.set $result
 
         ;; result += zY
@@ -3082,6 +2754,14 @@
         i32.add
         local.get $result
         i32.store8
+
+        ;;local.get $layer_idx
+        ;;i32.const 10
+        ;;i32.eq
+        ;;if
+        ;;  local.get $result
+        ;;  call $log
+        ;;end
 
         ;; idx++
         local.get $idx
@@ -3286,7 +2966,7 @@
         local.get $val
         local.get $mul
         local.get $shift
-        call $multiply_by_quantized_multiplier
+        call $multiply_by_quantized_multiplier_3
         local.set $scaled
 
         ;; scaled += zY
