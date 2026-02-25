@@ -255,11 +255,18 @@ def conv2d():
                         for c in range(cin):
                             idx = (row_base + col_img) * cin + c
                             tmp = input[idx]
-
+                            print(idx, tmp) # no indice 0 o valor é -115
+                            
                             pos = (ki * kw + kj) * cin + c
                             w0 = weights[oc * w_per_oc + pos]
 
                             acc += (tmp - zx) * (w0 - zw)
+
+                            #print(tmp)
+                            #print(zx)
+                            #print(w0)
+                            #print(zw)
+                #print(acc)
 
                 y = multiply_by_quantized_multiplier(acc, m, s)
                 y += zy

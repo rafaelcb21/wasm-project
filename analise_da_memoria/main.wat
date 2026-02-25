@@ -333,6 +333,275 @@
     )
   )
 
+  ;; ============================================================
+  ;; 1. FUNÇÕES DE SUPORTE (REQUANTIZAÇÃO UNIFICADA)
+  ;; ============================================================
+
+  (func $saturating_rounding_doubling_high_mul_3 (param $a i32) (param $b i32) (result i32)
+    (local $ab i64)
+    local.get $a
+    i32.const -2147483648
+    i32.eq
+    local.get $b
+    i32.const -2147483648
+    i32.eq
+    i32.and
+    (if 
+      (then 
+        i32.const 2147483647 
+        return
+      )
+    )
+    local.get $a
+    i64.extend_i32_s
+    local.get $b
+    i64.extend_i32_s
+    i64.mul
+    local.set $ab
+    local.get $ab
+    i64.const 1073741824 ;; nudge (1 << 30)
+    i64.add
+    i64.const 31
+    i64.shr_s
+    i32.wrap_i64
+  )
+
+  (func $rounding_divide_by_pot_3 (param $x i32) (param $exponent i32) (result i32)
+    (local $nudge i32)
+    local.get $exponent
+    i32.const 0
+    i32.le_s
+    (if 
+      (then 
+        local.get $x 
+        return
+      )
+    )
+    i32.const 1
+    local.get $exponent
+    i32.const 1
+    i32.sub
+    i32.shl
+    local.set $nudge
+    local.get $x
+    i32.const 0
+    i32.ge_s
+    (if (result i32)
+      (then 
+        local.get $x 
+        local.get $nudge 
+        i32.add 
+        i32.const 1 
+        i32.sub 
+        local.get $exponent 
+        i32.shr_s
+      )
+      (else 
+        local.get $x 
+        local.get $nudge 
+        i32.add 
+        local.get $exponent 
+        i32.shr_s
+      )
+    )
+  )
+
+  (func $multiply_by_quantized_multiplier_3 (param $x i32) (param $multiplier i32) (param $shift i32) (result i32)
+    local.get $shift
+    i32.const 0
+    i32.gt_s
+    (if 
+      (then 
+        local.get $x 
+        local.get $shift 
+        i32.shl 
+        local.set $x
+      )
+    )
+    local.get $x
+    local.get $multiplier
+    call $saturating_rounding_doubling_high_mul_3
+    local.set $x
+    local.get $shift
+    i32.const 0
+    i32.lt_s
+    (if 
+      (then 
+        local.get $x 
+        i32.const 0 
+        local.get $shift 
+        i32.sub 
+        call $rounding_divide_by_pot_3 
+        local.set $x
+      )
+    )
+    local.get $x
+  )
+
+  ;; ================================================
+  ;; INICIO - VERSAO PARA QUANTIZE
+  ;; ================================================
+  (func $multiply_by_quantized_multiplier_2
+    (param $x i32)      ;; acc   -8478
+    (param $m i32)      ;; m      1728771302
+    (param $shift i32)  ;; shift -11
+    (result i32)
+
+    (local $result i32)
+
+   
+    ;; Se shift > 0 → left shift ANTES
+    local.get $shift
+    i32.const 0
+    i32.gt_s
+    (if
+      (then
+        local.get $x
+        i32.const 1
+        local.get $shift
+        i32.shl
+        i32.mul
+        local.set $x
+      )
+    )
+
+    ;; Primeiro high mul (Q31)
+    local.get $x ;; -8478
+    local.get $m ;; 1728771302
+    call $saturating_rounding_doubling_high_mul_2
+    local.set $result ;; -6826
+
+
+    ;; Se shift < 0 → divide
+    local.get $shift
+    i32.const 0
+    i32.lt_s
+    (if
+        (then
+            local.get $result  ;; -6826
+            i32.const 0
+            local.get $shift    ;;-11
+            i32.sub
+            call $rounding_divide_by_pot_2
+            local.set $result            
+        )
+    )
+
+    local.get $result
+  )
+  
+  (func $rounding_divide_by_pot_2
+    (param $x i32)
+    (param $exponent i32)
+    (result i32)
+
+    (local $mask i32)
+    (local $remainder i32)
+    (local $threshold i32)
+    (local $result i32)
+
+    ;; mask = (1 << exponent) - 1
+    i32.const 1
+    local.get $exponent
+    i32.shl
+    i32.const 1
+    i32.sub
+    local.set $mask
+
+    ;; remainder = x & mask
+    local.get $x
+    local.get $mask
+    i32.and
+    local.set $remainder
+
+    ;; threshold = mask >> 1
+    local.get $mask
+    i32.const 1
+    i32.shr_u
+    local.set $threshold
+
+    ;; if x < 0 → threshold++
+    local.get $x
+    i32.const 0
+    i32.lt_s
+    (if
+      (then
+        local.get $threshold
+        i32.const 1
+        i32.add
+        local.set $threshold
+      )
+    )
+
+    ;; base = x >> exponent
+    local.get $x
+    local.get $exponent
+    i32.shr_s
+    local.set $result
+
+    ;; if remainder > threshold → result++
+    local.get $remainder
+    local.get $threshold
+    i32.ge_s
+    (if
+      (then
+        local.get $result
+        i32.const 1
+        i32.add
+        local.set $result
+      )
+    )
+
+    local.get $result
+  )
+  
+  (func $saturating_rounding_doubling_high_mul_2 (param $a i32) (param $b i32) (result i32)
+    (local $ab i64) ;; a -> x
+    (local $nudge i64) ;; b -> m
+    (local $result i32)
+
+    ;; Caso especial INT32_MIN * INT32_MIN
+    local.get $a
+    i32.const -2147483648
+    i32.eq
+    local.get $b
+    i32.const -2147483648
+    i32.eq
+    i32.and
+    (if
+      (then
+        i32.const 2147483647
+        return
+      )
+    )
+
+    ;; ab = (int64)a * b
+    local.get $a
+    i64.extend_i32_s
+    local.get $b
+    i64.extend_i32_s
+    i64.mul
+    local.set $ab
+
+    i64.const 1073741824
+    local.set $nudge
+
+    ;; (ab + nudge) >> 31
+    local.get $ab
+    local.get $nudge
+    i64.add
+    i64.const 31
+    i64.shr_s
+    i32.wrap_i64
+    local.set $result
+
+    local.get $result
+
+  )
+
+  ;; ============================================================
+  ;; FIM
+  ;; ============================================================
 
   ;; ============================================================
   ;; saturating_rounding_doubling_high_mul
@@ -1777,6 +2046,28 @@
     i32.mul
     local.set $w_per_oc ;; quantidade de pesos por canal 3x3x3 = 27
 
+    ;;local.get $layer_idx
+    ;;i32.const 1
+    ;;i32.eq
+    ;;if
+    ;;  local.get $bottom
+    ;;  call $log
+;;
+    ;;  local.get $right
+    ;;  call $log
+;;
+    ;;  local.get $plane_out
+    ;;  call $log
+;;
+    ;;  local.get $w_per_oc
+    ;;  call $log
+    ;;end
+
+    ;;LOG: 224
+    ;;LOG: 224
+    ;;LOG: 12544
+    ;;LOG: 27
+
     ;; =========================
     ;; loops: oc / i_out / j_out / ki / kj
     ;; com dilatação: row = i + ki*dil_h, col = j + kj*dil_w
@@ -1859,6 +2150,14 @@
                 i32.load align=4
                 local.set $b
 
+                ;;local.get $layer_idx
+                ;;i32.const 1
+                ;;i32.eq
+                ;;if
+                ;;  local.get $b
+                ;;  call $log
+                ;;end
+
                 ;; m = load<i32>(mul_ptr + oc*4)
                 local.get $mul_ptr
                 local.get $oc
@@ -1868,6 +2167,14 @@
                 i32.load align=4
                 local.set $m
 
+                ;;local.get $layer_idx
+                ;;i32.const 1
+                ;;i32.eq
+                ;;if
+                ;;  local.get $m
+                ;;  call $log
+                ;;end
+
                 ;; shift = load<i32>(shift_ptr + oc*4)
                 local.get $shift_ptr
                 local.get $oc
@@ -1876,6 +2183,14 @@
                 i32.add
                 i32.load align=4
                 local.set $shift
+
+                ;;local.get $layer_idx
+                ;;i32.const 1
+                ;;i32.eq
+                ;;if
+                ;;  local.get $shift
+                ;;  call $log
+                ;;end
 
                 ;; q6 = (q6_ptr != 0) ? load<i32>(q6_ptr + oc*4) : 0
                 local.get $q6_ptr
@@ -1894,6 +2209,14 @@
                   )
                 )
                 local.set $q6
+
+                ;;local.get $layer_idx
+                ;;i32.const 1
+                ;;i32.eq
+                ;;if
+                ;;  local.get $q6
+                ;;  call $log
+                ;;end
 
                 ;; baseWoc = wptr + oc * w_per_oc ;; base dos pesos onde eles estao
                 local.get $wptr
@@ -2048,6 +2371,14 @@
                                 i32.load8_s
                                 local.set $tmp
 
+                                ;;local.get $layer_idx
+                                ;;i32.const 1
+                                ;;i32.eq
+                                ;;if
+                                ;;  local.get $in_ptr
+                                ;;  call $log
+                                ;;end
+
                                 ;; pos = ((ki*kw + kj) * cin) + c
                                 local.get $ki
                                 local.get $kw
@@ -2078,6 +2409,23 @@
                                 i32.mul
                                 i32.add
                                 local.set $acc
+
+                                ;;local.get $layer_idx
+                                ;;i32.const 1
+                                ;;i32.eq
+                                ;;if
+                                ;;  local.get $tmp
+                                ;;  call $log
+;;
+                                ;;  local.get $zx
+                                ;;  call $log
+;;
+                                ;;  local.get $w0
+                                ;;  call $log
+;;
+                                ;;  local.get $zw
+                                ;;  call $log
+                                ;;end
 
                                 ;; c++
                                 local.get $c
@@ -2110,11 +2458,19 @@
                   )
                 )
 
+                ;;local.get $layer_idx
+                ;;i32.const 1
+                ;;i32.eq
+                ;;if
+                ;;  local.get $acc
+                ;;  call $log
+                ;;end
+
                 ;; 1. Cálculo base (Requantização)
                 local.get $acc
                 local.get $m
                 local.get $shift
-                call $multiply_by_quantized_multiplier
+                call $multiply_by_quantized_multiplier_3
                 local.get $zy
                 i32.add
                 local.set $y
@@ -2390,7 +2746,7 @@
         local.get $val
         local.get $mul
         local.get $shift
-        call $multiply_by_quantized_multiplier
+        call $multiply_by_quantized_multiplier_3
         local.set $result ;; <= O VALOR JÁ ESTA CERTO AQUI
 
         ;;local.get $layer_idx
