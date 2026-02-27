@@ -25,7 +25,7 @@ const NUM_CLASSES = 1000;
   const wasmBuffer = fs.readFileSync(WASM_PATH);
   const { instance } = await WebAssembly.instantiate(wasmBuffer, {
     env: {
-      log: (value) => console.log("LOG:", value),
+      log: (value) => console.log(value),
       logf: (value) => console.log("LOGF:", value),
       log64: (value) => console.log("LOG64:", value),
     }

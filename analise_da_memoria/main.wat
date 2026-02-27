@@ -2247,7 +2247,7 @@
                 i32.store8
 
                 ;;local.get $layer_idx
-                ;;i32.const 1
+                ;;i32.const 62
                 ;;i32.eq
                 ;;if
                 ;;  local.get $y
@@ -2466,6 +2466,14 @@
         ;;  local.get $result
         ;;  call $log
         ;;end
+        
+        ;;local.get $layer_idx
+        ;;i32.const 66
+        ;;i32.eq
+        ;;if
+        ;;  local.get $result
+        ;;  call $log
+        ;;end
 
         local.get $i
         i32.const 1
@@ -2515,6 +2523,9 @@
     (local $acc1     i32)
     (local $sum      i32)
     (local $result   i32)
+
+    ;;local.get $layer_idx
+    ;;call $log
 
     ;; Carregar base
     local.get $layer_idx
@@ -2993,6 +3004,9 @@
         local.get $scaled
         i32.store8
 
+        ;;local.get $scaled
+        ;;call $log
+
         ;; c++
         local.get $c
         i32.const 1
@@ -3226,7 +3240,7 @@
         local.get $acc    ;; -8478
         local.get $m      ;; 1728771302
         local.get $shift  ;; -11
-        call $multiply_by_quantized_multiplier
+        call $multiply_by_quantized_multiplier_3
         local.set $y      ;; 0
 
         ;;local.get $oc
@@ -3269,6 +3283,9 @@
         i32.add
         local.get $y
         i32.store8          ;; -48
+
+        ;;local.get $y
+        ;;call $log
 
         local.get $oc
         i32.const 1
@@ -3513,8 +3530,8 @@
         local.get $norm_val
         i32.store8
 
-        ;; local.get $norm_val
-        ;; call $log
+        ;;local.get $norm_val
+        ;;call $log
 
         local.get $i
         i32.const 1
