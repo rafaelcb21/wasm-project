@@ -415,7 +415,77 @@ console.log("28 ->", "out_w = ", readInt32Signed(1792848));
 // 27 -> out_h =  224
 // 28 -> out_w =  224
 
+///////////////////////////
+
+// QUANTIZE L66
+console.log("============================");
+console.log("QUANTIZE L66");
+console.log("0 -> ", "op_type = ", readInt32Signed(1800392));
+console.log("1 -> ", "act = ", readInt32Signed(1800396));
+console.log("2 -> ", "flags = ", readInt32Signed(1800400));
+console.log("3 -> ", "in_ptr = " , readInt32Signed(1800404));
+console.log("4 -> ", "out_ptr = ", readInt32Signed(1800408));
+console.log("5 -> ", "in_h = ", readInt32Signed(1800412));
+console.log("6 -> ", "in_w = ", readInt32Signed(1800416));
+console.log("7 -> ", "cin = ", readInt32Signed(1800420));
+console.log("8 -> ", "cout = ", readInt32Signed(1800424));
+console.log("9 -> ", "kh = ", readInt32Signed(1800428));
+console.log("10 ->", "kw = ", readInt32Signed(1800432));
+console.log("11 ->", "stride_h = ", readInt32Signed(1800436));
+console.log("12 ->", "stride_w = ", readInt32Signed(1800440));
+console.log("13 ->", "dil_h = ", readInt32Signed(1800444));
+console.log("14 ->", "dil_w = ", readInt32Signed(1800448));
+console.log("15 ->", "pad_t = ", readInt32Signed(1800452));
+console.log("16 ->", "pad_b = ", readInt32Signed(1800456));
+console.log("17 ->", "pad_l = ", readInt32Signed(1800460));
+console.log("18 ->", "pad_r = ", readInt32Signed(1800464));
+console.log("19 ->", "wptr = ", readInt32Signed(1800468));
+console.log("20 ->", "bias_ptr = ", readInt32Signed(1800472));
+console.log("21 ->", "mul_ptr = ", readInt32Signed(1800476));
+console.log("22 ->", "shift_ptr = ", readInt32Signed(1800480));
+console.log("23 ->", "q6_ptr = ", readInt32Signed(1800484));
+console.log("24 ->", "zx = ", readInt32Signed(1800488));
+console.log("25 ->", "zw = ", readInt32Signed(1800492));
+console.log("26 ->", "zy = ", readInt32Signed(1800496));
+console.log("27 ->", "out_h = ", readInt32Signed(1800500));
+console.log("28 ->", "out_w = ", readInt32Signed(1800504));
+
 ///////////////////////////////////////////////////
+// QUANTIZE L65
+console.log("============================");
+console.log("QUANTIZE L65");
+console.log("0 -> ", "op_type = ", readInt32Signed(1800276));
+console.log("1 -> ", "act = ", readInt32Signed(1800280));
+console.log("2 -> ", "flags = ", readInt32Signed(1800284));
+console.log("3 -> ", "in_ptr = " , readInt32Signed(1800288));
+console.log("4 -> ", "out_ptr = ", readInt32Signed(1800292));
+console.log("5 -> ", "in_h = ", readInt32Signed(1800296));
+console.log("6 -> ", "in_w = ", readInt32Signed(1800300));
+console.log("7 -> ", "cin = ", readInt32Signed(1800304));
+console.log("8 -> ", "cout = ", readInt32Signed(1800308));
+console.log("9 -> ", "kh = ", readInt32Signed(1800312));
+console.log("10 ->", "kw = ", readInt32Signed(1800316));
+console.log("11 ->", "stride_h = ", readInt32Signed(1800320));
+console.log("12 ->", "stride_w = ", readInt32Signed(1800324));
+console.log("13 ->", "dil_h = ", readInt32Signed(1800328));
+console.log("14 ->", "dil_w = ", readInt32Signed(1800332));
+console.log("15 ->", "pad_t = ", readInt32Signed(1800336));
+console.log("16 ->", "pad_b = ", readInt32Signed(1800340));
+console.log("17 ->", "pad_l = ", readInt32Signed(1800344));
+console.log("18 ->", "pad_r = ", readInt32Signed(1800348));
+console.log("19 ->", "wptr = ", readInt32Signed(1800352));
+console.log("20 ->", "bias_ptr = ", readInt32Signed(1800356));
+console.log("21 ->", "mul_ptr = ", readInt32Signed(1800360));
+console.log("22 ->", "shift_ptr = ", readInt32Signed(1800364));
+console.log("23 ->", "q6_ptr = ", readInt32Signed(1800368));
+console.log("24 ->", "zx = ", readInt32Signed(1800372));
+console.log("25 ->", "zw = ", readInt32Signed(1800376));
+console.log("26 ->", "zy = ", readInt32Signed(1800380));
+console.log("27 ->", "out_h = ", readInt32Signed(1800384));
+console.log("28 ->", "out_w = ", readInt32Signed(1800388));
+
+
+
 // 0 ->  op_type =  7
 // 1 ->  act =  0
 // 2 ->  flags =  0
